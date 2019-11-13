@@ -68,7 +68,7 @@ def non_max_suppression(boxes, probs=None, overlapThresh=0.3):
     return boxes[pick].astype("int")
 
 
-def tile_image(image, tiles_x, tiles_y):
+def tile_image_old(image, tiles_x, tiles_y):
     rect_dimension_x = image.shape[0] / tiles_x
     rect_dimension_y = image.shape[1] / tiles_y
 
@@ -86,6 +86,51 @@ def tile_image(image, tiles_x, tiles_y):
 
     return tiles
 
+
+def tiles_info(image, tiles_x, tiles_y, margin_percent):
+    tiles_dict = {}
+    rect_dimension_x = image.shape[0] / tiles_x
+    rect_dimension_y = image.shape[1] / tiles_y
+
+    for tile_x in range(0, tiles_x):
+        for tile_y in range(0, tiles_y):
+            x = int(tile_x * rect_dimension_x)
+            y = int(tile_y * rect_dimension_y)
+            final_x = int(x + rect_dimension_x)
+            final_y = int(y + rect_dimension_y)
+
+
+            margin_x = int(rect_dimension_x * margin_percent)
+            margin_y = int(rect_dimension_y * margin_percent)
+
+            new_x = max(0, x - margin_x)
+            new_y = max(0, y - margin_y)
+            new_final_x = min(image.shape[0], final_x + margin_x)
+            new_final_y = min(image.shape[1], final_y + margin_y)
+
+            margin_left = x - new_x
+            margin_top = y - new_y
+            margin_right = new_final_x - final_x
+            margin_bottom = new_final_y - final_y
+
+            tiles_dict[(tile_x, tile_y)] = {
+                'coords': (x, y, final_x, final_y),
+                'new_coords': (new_x, new_y, new_final_x, new_final_y),
+                'margins_length': (margin_left, margin_top, margin_right, margin_bottom)}
+    return tiles_dict
+
+
+def tile_image(image, tiles_x, tiles_y, tiles_dict):
+
+    tiles = np.zeros((tiles_x, tiles_y), object)
+
+    for tile_x in range(0, tiles_x):
+        for tile_y in range(0, tiles_y):
+            (x, y, final_x, final_y) = tiles_dict[tile_x, tile_y]['new_coords']
+            tile = image[x:final_x, y:final_y]
+            tiles[tile_x, tile_y] = tile
+
+    return tiles
 
 def append_tiles_image(tiles, tiles_x, tiles_y):
     horizontal_tiles = []

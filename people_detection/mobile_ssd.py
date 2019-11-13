@@ -3,7 +3,7 @@ import os
 import numpy as np
 import time
 from matplotlib import pyplot as plt
-from utils import tile_image, append_tiles_image
+from utils import tile_image, append_tiles_image, tiles_info
 
 
 detect_on_tiles = 'y'
@@ -12,6 +12,7 @@ tiles_y = 3
 video_file = '/home/vgoncalves/personal-git/people_detection_compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
 output_video = 'n'
 confidence = 0.2
+margin_percent = 0.25
 
 video_file_name = os.path.splitext(os.path.split(video_file)[1])[0]
 
@@ -80,10 +81,17 @@ def detect_single_frame(model, frame, confidence=0.2, tile_info=None):
     return boxes, confidences, total_time, frame_with_boxes
 
 
-vs = cv2.VideoCapture(video_file)  # Video
+vs = cv2.VideoCapture(video_file)  # Get frame size
+success, frame = vs.read()
+tiles_dict = None
+if detect_on_tiles == 'y':
+    tiles_dict = tiles_info(frame, tiles_x, tiles_y, margin_percent)
+
+vs = cv2.VideoCapture(video_file) # Video
 ##read from specific frame
 vs.set(cv2.CAP_PROP_POS_FRAMES, 550)
 writer = None
+
 
 while True:
     success, frame = vs.read()
@@ -99,7 +107,7 @@ while True:
         pass
 
     if detect_on_tiles == 'y':
-        tiles = tile_image(frame, tiles_x, tiles_y)
+        tiles = tile_image(frame, tiles_x, tiles_y, tiles_dict)
         new_tiles = np.zeros((tiles_x, tiles_y), object)
 
         tile_dim_x = tiles[0, 0].shape[0]
