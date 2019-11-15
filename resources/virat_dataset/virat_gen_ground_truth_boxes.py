@@ -60,5 +60,5 @@ for frame in range(0, num_frames):
                                                      int(row['y'] + row['height'])])
 
 
-with open(video_name + '_gt_boxes.json', 'w') as fp:
+with open(video_name + '_ground_truth_boxes.json', 'w') as fp:
     json.dump(dict_gt_boxes, fp)

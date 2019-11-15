@@ -16,14 +16,31 @@ import json
 import glob
 import os
 import time
-
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
+# import seaborn as sns
+#
+# sns.set_style('white')
+# sns.set_context('poster')
+from pygments.lexer import default
 
-sns.set_style('white')
-sns.set_context('poster')
+parser = argparse.ArgumentParser(description='Merge')
+
+parser.add_argument('-g', '--ground-truth-boxes',
+                    dest='ground_truth_boxes',
+                    type=str,
+                    default='ground_truth_boxes.json')
+parser.add_argument('-p', '--predicted-boxes',
+                    dest='predicted_boxes',
+                    type=str,
+                    default='predicted_boxes.json')
+
+
+args = parser.parse_args()
+ground_truth_boxes = args.ground_truth_boxes
+predicted_boxes = args.predicted_boxes
 
 COLORS = [
     '#1f77b4', '#aec7e8', '#ff7f0e', '#ffbb78', '#2ca02c',
@@ -290,10 +307,10 @@ def plot_pr_curve(
 
 if __name__ == "__main__":
 
-    with open('ground_truth_boxes.json') as infile:
+    with open(ground_truth_boxes) as infile:
         gt_boxes = json.load(infile)
 
-    with open('predicted_boxes.json') as infile:
+    with open(predicted_boxes) as infile:
         pred_boxes = json.load(infile)
 
     # Runs it for one IoU threshold
