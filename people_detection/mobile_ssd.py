@@ -3,12 +3,13 @@ import os
 import numpy as np
 import time
 from matplotlib import pyplot as plt
-from utils import tile_image, append_tiles_image, tiles_info
+from utils import tile_image, append_tiles_image, tiles_info, box_new_coords
 
 
 detect_on_tiles = 'y'
-tiles_x = 2
-tiles_y = 3
+debug = 'y'
+tiles_x = 3
+tiles_y = 4
 video_file = '/home/vgoncalves/personal-git/people_detection_compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
 output_video = 'n'
 confidence = 0.2
@@ -29,7 +30,7 @@ MOBILE_SSD_CLASSES = open(classes_path).read().strip().split("\n")
 mobile_ssd_net = cv2.dnn.readNetFromCaffe(prototxt, model)
 
 
-def detect_single_frame(model, frame, confidence=0.2, tile_info=None):
+def detect_single_frame(model, frame, confidence=0.2, tile_info=None, tiles_dict=None):
     (h, w) = frame.shape[:2]
     blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 0.007843, (300, 300), 127.5)
 
@@ -61,13 +62,14 @@ def detect_single_frame(model, frame, confidence=0.2, tile_info=None):
             if MOBILE_SSD_CLASSES[idx] == 'person':
 
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                (startX, startY, endX, endY) = box.astype("int")
 
                 if tile_info is not None:
-                    startX += tile_info['column'] * int(tile_info['dim_y'])
-                    startY += tile_info['row'] * int(tile_info['dim_x'])
-                    endX += tile_info['column'] * int(tile_info['dim_y'])
-                    endY += tile_info['row'] * int(tile_info['dim_x'])
+                    startX, startY, endX, endY = box_new_coords(box.astype("int"),
+                                                                tile_info['row'],
+                                                                tile_info['column'],
+                                                                tiles_dict)
+                else:
+                    (startX, startY, endX, endY) = box.astype("int")
 
 
                 boxes.append([startX, startY, endX, endY])
@@ -118,31 +120,37 @@ while True:
 
         for row in range(0, tiles_x):
             for column in range(0, tiles_y):
-                boxes, confidences, total_time, new_tiles[row, column] = detect_single_frame(mobile_ssd_net,
-                                                                                             tiles[row, column],
-                                                                                             confidence=confidence,
-                                                                                             tile_info={
-                                                                                                 'dim_x': tile_dim_x,
-                                                                                                 'dim_y': tile_dim_y,
-                                                                                                 'row': row,
-                                                                                                 'column': column}
-                                                                                             )
+                boxes, confidences, total_time, final_frame = detect_single_frame(mobile_ssd_net,
+                                                                                  tiles[row, column],
+                                                                                  confidence=confidence,
+                                                                                  tile_info={
+                                                                                      'row': row,
+                                                                                      'column': column},
+                                                                                  tiles_dict=tiles_dict)
+
                 all_boxes = all_boxes + boxes
                 all_confidences = all_confidences + confidences
                 all_times.append(total_time)
 
-        #final_frame = append_tiles_image(new_tiles, tiles_x, tiles_y)
         final_frame = frame.copy()
         for box in all_boxes:
             (startX, startY, endX, endY) = box
 
             cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
     else:
-
-        #Debug
-        tiles = tile_image(frame, tiles_x, tiles_y)
-        boxes, confidences, total_time, final_frame = detect_single_frame(mobile_ssd_net, tiles[1, 0], confidence=confidence)
-        #boxes, total_time, confidences, final_frame = detect_single_frame(mobile_ssd_net, frame, confidence=confidence)
+        # Debug a specif tile
+        if debug == 'y':
+            tiles_dict = tiles_info(frame, tiles_x, tiles_y, margin_percent)
+            tiles = tile_image(frame, tiles_x, tiles_y, tiles_dict)
+            boxes, confidences, total_time, final_frame = detect_single_frame(mobile_ssd_net,
+                                                                              tiles[2, 1],
+                                                                              confidence=confidence
+                                                                              )
+        else: # See entire frame
+            boxes, confidences, total_time, final_frame = detect_single_frame(mobile_ssd_net,
+                                                                              frame,
+                                                                              confidence=confidence
+                                                                              )
 
     if output_video == 'y':
         pass

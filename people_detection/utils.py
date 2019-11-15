@@ -68,25 +68,6 @@ def non_max_suppression(boxes, probs=None, overlapThresh=0.3):
     return boxes[pick].astype("int")
 
 
-def tile_image_old(image, tiles_x, tiles_y):
-    rect_dimension_x = image.shape[0] / tiles_x
-    rect_dimension_y = image.shape[1] / tiles_y
-
-    tiles = np.zeros((tiles_x, tiles_y), object)
-
-    for tile_x in range(0, tiles_x):
-        for tile_y in range(0, tiles_y):
-            x = int(tile_x * rect_dimension_x)
-            y = int(tile_y * rect_dimension_y)
-            final_x = int(x + rect_dimension_x)
-            final_y = int(y + rect_dimension_y)
-
-            tile = image[x:final_x, y:final_y]
-            tiles[tile_x, tile_y] = tile
-
-    return tiles
-
-
 def tiles_info(image, tiles_x, tiles_y, margin_percent):
     tiles_dict = {}
     rect_dimension_x = image.shape[0] / tiles_x
@@ -98,7 +79,6 @@ def tiles_info(image, tiles_x, tiles_y, margin_percent):
             y = int(tile_y * rect_dimension_y)
             final_x = int(x + rect_dimension_x)
             final_y = int(y + rect_dimension_y)
-
 
             margin_x = int(rect_dimension_x * margin_percent)
             margin_y = int(rect_dimension_y * margin_percent)
@@ -154,38 +134,14 @@ def append_tiles_image(tiles, tiles_x, tiles_y):
     return final_img
 
 
-def tile_new_coords(box, tile_info, margin_info=None):
+def box_new_coords(box, row, column, tiles_dict):
     (startX, startY, endX, endY) = box
 
-    startX += tile_info['column'] * int(tile_info['dim_y'])
-    startY += tile_info['row'] * int(tile_info['dim_x'])
-    endX += tile_info['column'] * int(tile_info['dim_y'])
-    endY += tile_info['row'] * int(tile_info['dim_x'])
+    new_x, new_y, new_final_x, new_final_y = tiles_dict[row, column]['new_coords']
 
-    if margin_info is not None:
-        tile_start_x = margin_info['margin_left']
-        tile_end_x = tile_start_x + tile_info['dim_x']
-        tile_start_y = margin_info['margin_top']
-        tile_end_y = tile_start_y + tile_info['dim_y']
+    startX += new_y
+    startY += new_x
+    endX += new_y
+    endY += new_x
 
-        if startX > tile_end_x or startX < tile_start_x:
-            if startX > tile_end_x:
-                delta = startX - tile_end_x
-                startX += delta
-                endX += delta
-            else:
-                delta = startX - tile_start_x
-                startX += delta
-                endX += delta
-
-        if startY > tile_end_y or startY < tile_start_y:
-            if startY > tile_end_y:
-                delta = startY - tile_end_y
-                startY += delta
-                endY += delta
-            else:
-                delta = startY - tile_start_y
-                startY += delta
-                endY += delta
-
-        return startX, startY, endX, endY
+    return startX, startY, endX, endY
