@@ -13,8 +13,8 @@ sys.path.append(os.path.join(main_dir, 'motion_detection'))
 detect_on_tiles = 'y'
 debug = 'n'
 only_moving_frames = 'y'
-tiles_x = 2
-tiles_y = 3
+tiles_x = 3
+tiles_y = 4
 video_file = '/home/vgoncalves/personal-git/people_detection_compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
 output_video = 'n'
 confidence = 0.2
