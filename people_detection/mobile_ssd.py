@@ -1,5 +1,5 @@
 import cv2
-import os
+import os, sys
 import numpy as np
 import time
 from matplotlib import pyplot as plt
@@ -7,22 +7,24 @@ from utils import tile_image, append_tiles_image, tiles_info, box_new_coords, de
 from tqdm import tqdm
 import json
 
+main_dir = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+sys.path.append(os.path.join(main_dir, 'motion_detection'))
 
 detect_on_tiles = 'y'
 debug = 'n'
-tiles_x = 3
-tiles_y = 4
+only_moving_frames = 'y'
+tiles_x = 2
+tiles_y = 3
 video_file = '/home/vgoncalves/personal-git/people_detection_compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
 output_video = 'n'
 confidence = 0.2
 margin_percent = 0.25
-start_frame = 550
-end_frame = 570
-# start_frame = None
-# end_frame = None
+# start_frame = 550
+# end_frame = 570
+start_frame = None
+end_frame = None
 
 video_file_name = os.path.splitext(os.path.split(video_file)[1])[0]
-main_dir = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 mobile_ssd_dir = os.path.join(main_dir, 'models/mobile_ssd')
 prototxt = os.path.join(mobile_ssd_dir, 'MobileNetSSD_deploy.prototxt.txt')
@@ -37,6 +39,11 @@ ground_truth_file = main_dir + '/resources/virat_dataset/' + video_file_name + '
 
 with open(ground_truth_file) as infile:
     ground_truth_boxes = json.load(infile)
+
+if only_moving_frames == 'y':
+    moving_frames_file = main_dir + '/results/' + video_file_name + '_moving_frames.json'
+    with open(moving_frames_file) as infile:
+        moving_frames = json.load(infile)
 
 
 def detect_single_frame(model, frame, row, column, tiles_dict, **kwargs):
@@ -129,4 +136,5 @@ detect_over_frames(vs,
                    main_dir=main_dir,
                    video_file_name=video_file_name,
                    confidence=confidence,
-                   tiles_dict=tiles_dict)
+                   tiles_dict=tiles_dict,
+                   moving_frames=moving_frames)

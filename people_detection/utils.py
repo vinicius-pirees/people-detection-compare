@@ -115,6 +115,7 @@ def tile_image(image, tiles_x, tiles_y, tiles_dict):
 
     return tiles
 
+
 def append_tiles_image(tiles, tiles_x, tiles_y):
     horizontal_tiles = []
     horizontal_img = None
@@ -149,6 +150,7 @@ def box_new_coords(box, row, column, tiles_dict):
 
     return startX, startY, endX, endY
 
+
 def detect_over_frames(video_stream, technique, detect_single_frame_function, **kwargs):
     output_video = kwargs.get('output_video')
     detect_on_tiles = kwargs.get('detect_on_tiles')
@@ -165,6 +167,8 @@ def detect_over_frames(video_stream, technique, detect_single_frame_function, **
     total_frames = kwargs.get('total_frames')
     main_dir = kwargs.get('main_dir')
     video_file_name = kwargs.get('video_file_name')
+    moving_frames = kwargs.get('moving_frames')
+
 
     detection_args = {}
     if technique == 'haar':
@@ -180,25 +184,32 @@ def detect_over_frames(video_stream, technique, detect_single_frame_function, **
     elif technique == 'mobile_ssd':
         detection_args['confidence'] = kwargs.get('confidence')
 
-
     writer = None
     dict_predictions = {}
     progress_bar = tqdm(total=total_frames)
     frames_times = []
 
-
     while True:
         success, frame = video_stream.read()
-        all_boxes = []
-        all_confidences = []
-        all_times = []
-
         if not success:
             video_stream.release()
             cv2.destroyAllWindows()
             if output_video == 'y':
                 writer.release()
             break
+
+        if moving_frames is not None:
+            condition = moving_frames[str(current_frame)]
+            if not condition:
+                current_frame += 1
+                progress_bar.update(1)
+                continue
+
+        all_boxes = []
+        all_confidences = []
+        all_times = []
+
+
 
         if detect_on_tiles == 'y':
             tiles = tile_image(frame, tiles_x, tiles_y, tiles_dict)
@@ -293,10 +304,17 @@ def detect_over_frames(video_stream, technique, detect_single_frame_function, **
 
     if debug != 'y':
         if detect_on_tiles == 'y':
-            tile_name = '_tiled_' + str(tiles_x) + 'X' + str(tiles_y)
+            if moving_frames is not None:
+                tile_name = '_tiled_' + str(tiles_x) + 'X' + str(tiles_y) + '_moving'
+            else:
+                tile_name = '_tiled_' + str(tiles_x) + 'X' + str(tiles_y)
             prediction_file_name = main_dir + '/results/' + video_file_name + '_' + technique + tile_name + '_predicted_boxes.json'
         else:
-            prediction_file_name = main_dir + '/results/' + video_file_name + '_' + technique + '_predicted_boxes.json'
+            if moving_frames is not None:
+                prediction_file_name = main_dir + '/results/' + video_file_name + '_' + technique + '_moving_predicted_boxes.json'
+            else:
+                prediction_file_name = main_dir + '/results/' + video_file_name + '_' + technique + '_predicted_boxes.json'
+
         with open(prediction_file_name, 'w') as fp:
             json.dump(dict_predictions, fp)
 

@@ -4,16 +4,24 @@ import os
 import pandas as pd
 import json
 
-
+only_moving_frames = 'y'
 video_name = 'VIRAT_S_010000_00_000000_000165'
+main_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(os.path.dirname(__file__)))))
 
 video = cv2.VideoCapture(video_name + '.mp4')
 
 num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
+
+if only_moving_frames == 'y':
+    moving_frames_file = main_dir + '/results/' + video_name + '_moving_frames.json'
+    with open(moving_frames_file) as infile:
+        moving_frames = json.load(infile)
+
+
 dict_gt_boxes = {}
-for frame in range(0, num_frames):
-    dict_gt_boxes['frame_' + str(frame)] = []
+# for frame in range(0, num_frames):
+#     dict_gt_boxes['frame_' + str(frame)] = []
 
 # Each line captures informabiont about a bounding box of an object (person/car etc) at the corresponding frame.
 # Each object track is assigned a unique 'object id' identifier.
@@ -52,13 +60,30 @@ annotation_df = annotation_df.sort_values(by=['currentFrame'])
 
 annotation_df_people = annotation_df[annotation_df['objectType'] == 1]
 
-for frame in range(0, num_frames):
-    for index, row in annotation_df_people[annotation_df_people['currentFrame'] == frame].iterrows():
-        dict_gt_boxes['frame_' + str(frame)].append([int(row['x']),
-                                                     int(row['y']),
-                                                     int(row['x'] + row['width']),
-                                                     int(row['y'] + row['height'])])
+if only_moving_frames == 'y':
+    for frame in range(0, num_frames):
+        condition = moving_frames[str(frame)]
+        if condition:
+            for index, row in annotation_df_people[annotation_df_people['currentFrame'] == frame].iterrows():
+                if dict_gt_boxes.get('frame_' + str(frame)) is None:
+                    dict_gt_boxes['frame_' + str(frame)] = []
+                dict_gt_boxes['frame_' + str(frame)].append([int(row['x']),
+                                                             int(row['y']),
+                                                             int(row['x'] + row['width']),
+                                                             int(row['y'] + row['height'])])
+else:
+    for frame in range(0, num_frames):
+        for index, row in annotation_df_people[annotation_df_people['currentFrame'] == frame].iterrows():
+            if dict_gt_boxes.get('frame_' + str(frame)) is None:
+                dict_gt_boxes['frame_' + str(frame)] = []
+            dict_gt_boxes['frame_' + str(frame)].append([int(row['x']),
+                                                         int(row['y']),
+                                                         int(row['x'] + row['width']),
+                                                         int(row['y'] + row['height'])])
 
-
-with open(video_name + '_ground_truth_boxes.json', 'w') as fp:
-    json.dump(dict_gt_boxes, fp)
+if only_moving_frames == 'y':
+    with open(video_name + '_moving_ground_truth_boxes.json', 'w') as fp:
+        json.dump(dict_gt_boxes, fp)
+else:
+    with open(video_name + '_ground_truth_boxes.json', 'w') as fp:
+        json.dump(dict_gt_boxes, fp)
