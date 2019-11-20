@@ -166,11 +166,20 @@ def detect_over_frames(video_stream, technique, detect_single_frame_function, **
     main_dir = kwargs.get('main_dir')
     video_file_name = kwargs.get('video_file_name')
 
-    detection_args = None
+    detection_args = {}
     if technique == 'haar':
-        scaleFactor = kwargs.get('scaleFactor')
-        minNeighbors = kwargs.get('minNeighbors')
-        detection_args = (scaleFactor, minNeighbors)
+        detection_args['scaleFactor'] = kwargs.get('scaleFactor')
+        detection_args['minNeighbors'] = kwargs.get('minNeighbors')
+    elif technique == 'hog':
+        detection_args['winStride'] = kwargs.get('winStride')
+        detection_args['padding'] = kwargs.get('padding')
+        detection_args['scale'] = kwargs.get('scale')
+    elif technique == 'yolo':
+        detection_args['confidence'] = kwargs.get('confidence')
+        detection_args['threshold'] = kwargs.get('threshold')
+    elif technique == 'mobile_ssd':
+        detection_args['confidence'] = kwargs.get('confidence')
+
 
     writer = None
     dict_predictions = {}
@@ -198,23 +207,16 @@ def detect_over_frames(video_stream, technique, detect_single_frame_function, **
                 # Debug a specific tile
                 row = 1
                 column = 1
-                boxes, confidences, total_time, final_frame = detect_single_frame_function(model,
-                                                                                  tiles[row, column],
-                                                                                  detection_args
-                                                                                  )
+                boxes, confidences, total_time, final_frame = \
+                    detect_single_frame_function(model, tiles[row, column], None,  None,  None,  **detection_args)
 
             else:
                 final_frame = frame.copy()
 
                 for row in range(0, tiles_x):
                     for column in range(0, tiles_y):
-                        boxes, confidences, total_time, _ = detect_single_frame_function(model,
-                                                                                tiles[row, column],
-                                                                                detection_args,
-                                                                                tile_info={
-                                                                                    'row': row,
-                                                                                    'column': column},
-                                                                                tiles_dict=tiles_dict)
+                        boxes, confidences, total_time, _ = \
+                            detect_single_frame_function(model, tiles[row, column], row, column, tiles_dict, **detection_args)
 
                         all_boxes = all_boxes + boxes
                         all_confidences = all_confidences + confidences
@@ -234,14 +236,11 @@ def detect_over_frames(video_stream, technique, detect_single_frame_function, **
 
         else:  # See entire frame
             if debug == 'y':
-                boxes, confidences, total_time, final_frame = detect_single_frame_function(model,
-                                                                                  frame,
-                                                                                  detection_args
-                                                                                  )
+                boxes, confidences, total_time, final_frame = \
+                    detect_single_frame_function(model, frame, None, None, None, **detection_args)
             else:
-                boxes, confidences, total_time, _ = detect_single_frame_function(model,
-                                                                        frame,
-                                                                        detection_args)
+                boxes, confidences, total_time, _ = \
+                    detect_single_frame_function(model, frame,  None,  None, None, **detection_args)
 
                 all_boxes = all_boxes + boxes
                 all_confidences = all_confidences + confidences
@@ -264,7 +263,12 @@ def detect_over_frames(video_stream, technique, detect_single_frame_function, **
             if writer is None:
                 # initialize our video writer
                 fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-                writer = cv2.VideoWriter(main_dir + '/results/' + video_file_name + '_' + technique + '_prediction_result.mp4',
+                if detect_on_tiles == 'y':
+                    tile_name = '_tiled_' + str(tiles_x) + 'X' + str(tiles_y)
+                    file_name_record = main_dir + '/results/' + video_file_name + '_' + technique + tile_name + '_prediction_result.mp4'
+                else:
+                    file_name_record = main_dir + '/results/' + video_file_name + '_' + technique + '_prediction_result.mp4'
+                writer = cv2.VideoWriter(file_name_record,
                                          fourcc, 30, (final_frame.shape[1], final_frame.shape[0]), True)
 
             # write the output frame to disk
@@ -288,7 +292,12 @@ def detect_over_frames(video_stream, technique, detect_single_frame_function, **
             break
 
     if debug != 'y':
-        with open(main_dir + '/results/' + video_file_name + '_' + technique + '_predicted_boxes.json', 'w') as fp:
+        if detect_on_tiles == 'y':
+            tile_name = '_tiled_' + str(tiles_x) + 'X' + str(tiles_y)
+            prediction_file_name = main_dir + '/results/' + video_file_name + '_' + technique + tile_name + '_predicted_boxes.json'
+        else:
+            prediction_file_name = main_dir + '/results/' + video_file_name + '_' + technique + '_predicted_boxes.json'
+        with open(prediction_file_name, 'w') as fp:
             json.dump(dict_predictions, fp)
 
         print(np.round(1 / np.mean(frames_times), 2), 'FPS')

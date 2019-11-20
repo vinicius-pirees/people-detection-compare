@@ -3,15 +3,15 @@ import os
 import numpy as np
 import time
 from matplotlib import pyplot as plt
-from utils import tile_image, append_tiles_image, tiles_info, box_new_coords
+from utils import tile_image, append_tiles_image, tiles_info, box_new_coords, detect_over_frames
 from tqdm import tqdm
 import json
 
 
 detect_on_tiles = 'y'
 debug = 'n'
-tiles_x = 2
-tiles_y = 3
+tiles_x = 3
+tiles_y = 4
 video_file = '/home/vgoncalves/personal-git/people_detection_compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
 output_video = 'n'
 confidence = 0.2
@@ -38,8 +38,10 @@ ground_truth_file = main_dir + '/resources/virat_dataset/' + video_file_name + '
 with open(ground_truth_file) as infile:
     ground_truth_boxes = json.load(infile)
 
-def detect_single_frame(model, frame, confidence=0.2, tile_info=None, tiles_dict=None):
+
+def detect_single_frame(model, frame, row, column, tiles_dict, **kwargs):
     (h, w) = frame.shape[:2]
+    confidence = kwargs.get('confidence')
     blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 0.007843, (300, 300), 127.5)
 
     # pass the blob through the network and obtain the detections and
@@ -71,10 +73,10 @@ def detect_single_frame(model, frame, confidence=0.2, tile_info=None, tiles_dict
 
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
 
-                if tile_info is not None:
+                if tiles_dict is not None:
                     startX, startY, endX, endY = box_new_coords(box.astype("int"),
-                                                                tile_info['row'],
-                                                                tile_info['column'],
+                                                                row,
+                                                                column,
                                                                 tiles_dict)
                 else:
                     (startX, startY, endX, endY) = box.astype("int")
@@ -111,129 +113,20 @@ dict_predictions = {}
 progress_bar = tqdm(total=total_frames)
 frames_times = []
 
-while True:
-    success, frame = vs.read()
-    all_boxes = []
-    all_confidences = []
-    all_times = []
-
-    if not success:
-        vs.release()
-        cv2.destroyAllWindows()
-        if output_video == 'y':
-            writer.release()
-        break
-
-    if detect_on_tiles == 'y':
-        tiles = tile_image(frame, tiles_x, tiles_y, tiles_dict)
-        new_tiles = np.zeros((tiles_x, tiles_y), object)
-
-        tile_dim_x = tiles[0, 0].shape[0]
-        tile_dim_y = tiles[0, 0].shape[1]
-
-        if debug == 'y':
-            # Debug a specific tile
-            row = 1
-            column = 1
-            boxes, confidences, total_time, final_frame = detect_single_frame(mobile_ssd_net,
-                                                                              tiles[row, column],
-                                                                              confidence=confidence
-                                                                              )
-
-        else:
-            final_frame = frame.copy()
-
-            for row in range(0, tiles_x):
-                for column in range(0, tiles_y):
-                    boxes, confidences, total_time, _ = detect_single_frame(mobile_ssd_net,
-                                                                                      tiles[row, column],
-                                                                                      confidence=confidence,
-                                                                                      tile_info={
-                                                                                          'row': row,
-                                                                                          'column': column},
-                                                                                      tiles_dict=tiles_dict)
-
-                    all_boxes = all_boxes + boxes
-                    all_confidences = all_confidences + confidences
-                    all_times.append(total_time)
-
-            for box in all_boxes:
-                (startX, startY, endX, endY) = box
-
-                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
-
-            for box in ground_truth_boxes['frame_' + str(current_frame)]:
-                (startX, startY, endX, endY) = box
-
-                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
-
-            frames_times.append(np.sum(all_times))
-
-    else:  # See entire frame
-        if debug == 'y':
-            boxes, confidences, total_time, final_frame = detect_single_frame(mobile_ssd_net,
-                                                                              frame,
-                                                                              confidence=confidence
-                                                                              )
-        else:
-            boxes, confidences, total_time, _ = detect_single_frame(mobile_ssd_net,
-                                                                    frame,
-                                                                    confidence=confidence)
-
-            all_boxes = all_boxes + boxes
-            all_confidences = all_confidences + confidences
-            all_times.append(total_time)
-
-            final_frame = frame.copy()
-            for box in all_boxes:
-                (startX, startY, endX, endY) = box
-
-                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
-
-            for box in ground_truth_boxes['frame_' + str(current_frame)]:
-                (startX, startY, endX, endY) = box
-
-                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
-            frames_times.append(np.sum(all_times))
-
-    if output_video == 'y':
-        # check if the video writer is None
-        if writer is None:
-            # initialize our video writer
-            fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-            writer = cv2.VideoWriter(main_dir + '/results/' + video_file_name + '_ssd_prediction_result.mp4', fourcc, 30, (final_frame.shape[1], final_frame.shape[0]), True)
-
-        # write the output frame to disk
-        writer.write(final_frame)
-
-    dict_predictions['frame_' + str(current_frame)] = {}
-    dict_predictions['frame_' + str(current_frame)]['boxes'] = all_boxes
-    dict_predictions['frame_' + str(current_frame)]['scores'] = all_confidences
-
-    current_frame += 1
-    progress_bar.update(1)
-
-    ##Debug
-    cv2.imshow('frame', final_frame)
-    # Press Q on keyboard to  exit
-    if (cv2.waitKey(25) & 0xFF == ord('q')) or current_frame == end_frame:
-        vs.release()
-        cv2.destroyAllWindows()  # Debug
-        if output_video == 'y':
-            writer.release()
-        break
-
-if debug != 'y':
-    with open(main_dir + '/results/' + video_file_name + '_ssd_predicted_boxes.json', 'w') as fp:
-        json.dump(dict_predictions, fp)
-
-    print(np.round(1/np.mean(frames_times), 2), 'FPS')
-
-
-
-
-
-
-
-
-
+detect_over_frames(vs,
+                   'mobile_ssd',
+                   detect_single_frame,
+                   output_video=output_video,
+                   detect_on_tiles=detect_on_tiles,
+                   debug=debug,
+                   tiles_x=tiles_x,
+                   tiles_y=tiles_y,
+                   model=mobile_ssd_net,
+                   ground_truth_boxes=ground_truth_boxes,
+                   current_frame=current_frame,
+                   end_frame=end_frame,
+                   total_frames=total_frames,
+                   main_dir=main_dir,
+                   video_file_name=video_file_name,
+                   confidence=confidence,
+                   tiles_dict=tiles_dict)

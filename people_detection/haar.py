@@ -3,7 +3,7 @@ import os
 import numpy as np
 import time
 from matplotlib import pyplot as plt
-from utils import tile_image, append_tiles_image, tiles_info, box_new_coords
+from utils import tile_image, append_tiles_image, tiles_info, box_new_coords, detect_over_frames
 from tqdm import tqdm
 import json
 
@@ -33,8 +33,11 @@ with open(ground_truth_file) as infile:
     ground_truth_boxes = json.load(infile)
 
 
-def detect_single_frame(full_body_cascade, frame, scaleFactor=1.1, minNeighbors=3, tile_info=None, tiles_dict=None):
+def detect_single_frame(full_body_cascade, frame, row, column, tiles_dict, **kwargs):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    scaleFactor = kwargs.get('scaleFactor')
+    minNeighbors = kwargs.get('minNeighbors')
 
     start_time = time.time()
     bodies = full_body_cascade.detectMultiScale(gray, scaleFactor, minNeighbors)
@@ -46,10 +49,10 @@ def detect_single_frame(full_body_cascade, frame, scaleFactor=1.1, minNeighbors=
 
     # Draw rectangle around the faces
     for (x, y, w, h) in bodies:
-        if tile_info is not None:
+        if tiles_dict is not None:
             startX, startY, endX, endY = box_new_coords([x, y, (x + w), (y + h)],
-                                                        tile_info['row'],
-                                                        tile_info['column'],
+                                                        row,
+                                                        column,
                                                         tiles_dict)
         else:
             (startX, startY, endX, endY) = (x, y, (x + w), (y + h))
@@ -83,121 +86,21 @@ dict_predictions = {}
 progress_bar = tqdm(total=total_frames)
 frames_times = []
 
-
-while True:
-    success, frame = vs.read()
-    all_boxes = []
-    all_confidences = []
-    all_times = []
-
-    if not success:
-        vs.release()
-        cv2.destroyAllWindows()
-        if output_video == 'y':
-            writer.release()
-        break
-
-    if detect_on_tiles == 'y':
-        tiles = tile_image(frame, tiles_x, tiles_y, tiles_dict)
-
-        if debug == 'y':
-            # Debug a specific tile
-            row = 1
-            column = 1
-            boxes, confidences, total_time, final_frame = detect_single_frame(full_body_cascade,
-                                                                              tiles[row, column],
-                                                                              scaleFactor=scaleFactor,
-                                                                              minNeighbors=minNeighbors
-                                                                              )
-
-        else:
-            final_frame = frame.copy()
-
-            for row in range(0, tiles_x):
-                for column in range(0, tiles_y):
-                    boxes, confidences, total_time, _ = detect_single_frame(full_body_cascade,
-                                                                              tiles[row, column],
-                                                                              scaleFactor=scaleFactor,
-                                                                              minNeighbors=minNeighbors,
-                                                                              tile_info={
-                                                                                  'row': row,
-                                                                                  'column': column},
-                                                                              tiles_dict=tiles_dict)
-
-                    all_boxes = all_boxes + boxes
-                    all_confidences = all_confidences + confidences
-                    all_times.append(total_time)
-
-            for box in all_boxes:
-                (startX, startY, endX, endY) = box
-
-                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
-
-            for box in ground_truth_boxes['frame_' + str(current_frame)]:
-                (startX, startY, endX, endY) = box
-
-                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
-
-            frames_times.append(np.sum(all_times))
-
-    else:  # See entire frame
-        if debug == 'y':
-            boxes, confidences, total_time, final_frame = detect_single_frame(full_body_cascade,
-                                                                              frame,
-                                                                              scaleFactor=scaleFactor,
-                                                                              minNeighbors=minNeighbors
-                                                                              )
-        else:
-            boxes, confidences, total_time, _ = detect_single_frame(full_body_cascade,
-                                                                    frame,
-                                                                    scaleFactor=scaleFactor,
-                                                                    minNeighbors=minNeighbors)
-
-            all_boxes = all_boxes + boxes
-            all_confidences = all_confidences + confidences
-            all_times.append(total_time)
-
-            final_frame = frame.copy()
-            for box in all_boxes:
-                (startX, startY, endX, endY) = box
-
-                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
-
-            for box in ground_truth_boxes['frame_' + str(current_frame)]:
-                (startX, startY, endX, endY) = box
-
-                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
-            frames_times.append(np.sum(all_times))
-
-    if output_video == 'y':
-        # check if the video writer is None
-        if writer is None:
-            # initialize our video writer
-            fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-            writer = cv2.VideoWriter(main_dir + '/results/' + video_file_name + '_haar_prediction_result.mp4', fourcc, 30, (final_frame.shape[1], final_frame.shape[0]), True)
-
-        # write the output frame to disk
-        writer.write(final_frame)
-
-    dict_predictions['frame_' + str(current_frame)] = {}
-    dict_predictions['frame_' + str(current_frame)]['boxes'] = all_boxes
-    dict_predictions['frame_' + str(current_frame)]['scores'] = all_confidences
-
-    current_frame += 1
-    progress_bar.update(1)
-
-    ##Debug
-    cv2.imshow('frame', final_frame)
-    # Press Q on keyboard to  exit
-    if (cv2.waitKey(25) & 0xFF == ord('q')) or current_frame == end_frame:
-        vs.release()
-        cv2.destroyAllWindows()  # Debug
-        if output_video == 'y':
-            writer.release()
-        break
-
-if debug != 'y':
-    with open(main_dir + '/results/' + video_file_name + '_haar_predicted_boxes.json', 'w') as fp:
-        json.dump(dict_predictions, fp)
-
-    print(np.round(1/np.mean(frames_times), 2), 'FPS')
+detect_over_frames(vs,
+                   'haar',
+                   detect_single_frame,
+                   output_video=output_video,
+                   detect_on_tiles=detect_on_tiles,
+                   debug=debug,
+                   tiles_x=tiles_x,
+                   tiles_y=tiles_y,
+                   model=full_body_cascade,
+                   ground_truth_boxes=ground_truth_boxes,
+                   current_frame=current_frame,
+                   end_frame=end_frame,
+                   total_frames=total_frames,
+                   main_dir=main_dir,
+                   video_file_name=video_file_name,
+                   scaleFactor=scaleFactor,
+                   minNeighbors=minNeighbors,
+                   tiles_dict=tiles_dict)
