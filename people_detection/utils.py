@@ -1,4 +1,7 @@
 import numpy as np
+import cv2
+from tqdm import tqdm
+import json
 
 
 def non_max_suppression(boxes, probs=None, overlapThresh=0.3):
@@ -145,3 +148,150 @@ def box_new_coords(box, row, column, tiles_dict):
     endY += new_x
 
     return startX, startY, endX, endY
+
+def detect_over_frames(video_stream, technique, detect_single_frame_function, **kwargs):
+    output_video = kwargs.get('output_video')
+    detect_on_tiles = kwargs.get('detect_on_tiles')
+    debug = kwargs.get('debug')
+    tiles_x = kwargs.get('tiles_x')
+    tiles_y = kwargs.get('tiles_y')
+    tiles_dict = kwargs.get('tiles_dict')
+
+    model = kwargs.get('model')
+
+    ground_truth_boxes = kwargs.get('ground_truth_boxes')
+    current_frame = kwargs.get('current_frame')
+    end_frame = kwargs.get('end_frame')
+    total_frames = kwargs.get('total_frames')
+    main_dir = kwargs.get('main_dir')
+    video_file_name = kwargs.get('video_file_name')
+
+    detection_args = None
+    if technique == 'haar':
+        scaleFactor = kwargs.get('scaleFactor')
+        minNeighbors = kwargs.get('minNeighbors')
+        detection_args = (scaleFactor, minNeighbors)
+
+    writer = None
+    dict_predictions = {}
+    progress_bar = tqdm(total=total_frames)
+    frames_times = []
+
+
+    while True:
+        success, frame = video_stream.read()
+        all_boxes = []
+        all_confidences = []
+        all_times = []
+
+        if not success:
+            video_stream.release()
+            cv2.destroyAllWindows()
+            if output_video == 'y':
+                writer.release()
+            break
+
+        if detect_on_tiles == 'y':
+            tiles = tile_image(frame, tiles_x, tiles_y, tiles_dict)
+
+            if debug == 'y':
+                # Debug a specific tile
+                row = 1
+                column = 1
+                boxes, confidences, total_time, final_frame = detect_single_frame_function(model,
+                                                                                  tiles[row, column],
+                                                                                  detection_args
+                                                                                  )
+
+            else:
+                final_frame = frame.copy()
+
+                for row in range(0, tiles_x):
+                    for column in range(0, tiles_y):
+                        boxes, confidences, total_time, _ = detect_single_frame_function(model,
+                                                                                tiles[row, column],
+                                                                                detection_args,
+                                                                                tile_info={
+                                                                                    'row': row,
+                                                                                    'column': column},
+                                                                                tiles_dict=tiles_dict)
+
+                        all_boxes = all_boxes + boxes
+                        all_confidences = all_confidences + confidences
+                        all_times.append(total_time)
+
+                for box in all_boxes:
+                    (startX, startY, endX, endY) = box
+
+                    cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
+
+                for box in ground_truth_boxes['frame_' + str(current_frame)]:
+                    (startX, startY, endX, endY) = box
+
+                    cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
+
+                frames_times.append(np.sum(all_times))
+
+        else:  # See entire frame
+            if debug == 'y':
+                boxes, confidences, total_time, final_frame = detect_single_frame_function(model,
+                                                                                  frame,
+                                                                                  detection_args
+                                                                                  )
+            else:
+                boxes, confidences, total_time, _ = detect_single_frame_function(model,
+                                                                        frame,
+                                                                        detection_args)
+
+                all_boxes = all_boxes + boxes
+                all_confidences = all_confidences + confidences
+                all_times.append(total_time)
+
+                final_frame = frame.copy()
+                for box in all_boxes:
+                    (startX, startY, endX, endY) = box
+
+                    cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
+
+                for box in ground_truth_boxes['frame_' + str(current_frame)]:
+                    (startX, startY, endX, endY) = box
+
+                    cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
+                frames_times.append(np.sum(all_times))
+
+        if output_video == 'y':
+            # check if the video writer is None
+            if writer is None:
+                # initialize our video writer
+                fourcc = cv2.VideoWriter_fourcc(*"MJPG")
+                writer = cv2.VideoWriter(main_dir + '/results/' + video_file_name + '_' + technique + '_prediction_result.mp4',
+                                         fourcc, 30, (final_frame.shape[1], final_frame.shape[0]), True)
+
+            # write the output frame to disk
+            writer.write(final_frame)
+
+        dict_predictions['frame_' + str(current_frame)] = {}
+        dict_predictions['frame_' + str(current_frame)]['boxes'] = all_boxes
+        dict_predictions['frame_' + str(current_frame)]['scores'] = all_confidences
+
+        current_frame += 1
+        progress_bar.update(1)
+
+        ##Debug
+        cv2.imshow('frame', final_frame)
+        # Press Q on keyboard to  exit
+        if (cv2.waitKey(25) & 0xFF == ord('q')) or current_frame == end_frame:
+            video_stream.release()
+            cv2.destroyAllWindows()  # Debug
+            if output_video == 'y':
+                writer.release()
+            break
+
+    if debug != 'y':
+        with open(main_dir + '/results/' + video_file_name + '_' + technique + '_predicted_boxes.json', 'w') as fp:
+            json.dump(dict_predictions, fp)
+
+        print(np.round(1 / np.mean(frames_times), 2), 'FPS')
+
+
+

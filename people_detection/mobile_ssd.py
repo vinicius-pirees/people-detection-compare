@@ -17,13 +17,11 @@ output_video = 'n'
 confidence = 0.2
 margin_percent = 0.25
 start_frame = 550
-end_frame = 560
+end_frame = 570
 # start_frame = None
 # end_frame = None
 
 video_file_name = os.path.splitext(os.path.split(video_file)[1])[0]
-
-
 main_dir = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 mobile_ssd_dir = os.path.join(main_dir, 'models/mobile_ssd')
@@ -92,40 +90,36 @@ def detect_single_frame(model, frame, confidence=0.2, tile_info=None, tiles_dict
     return boxes, confidences, total_time, frame_with_boxes
 
 
-vs = cv2.VideoCapture(video_file)  # Get frame size
-success, frame = vs.read()
 tiles_dict = None
 if detect_on_tiles == 'y':
+    vs = cv2.VideoCapture(video_file)  # Get tile size
+    success, frame = vs.read()
     tiles_dict = tiles_info(frame, tiles_x, tiles_y, margin_percent)
 
-vs = cv2.VideoCapture(video_file) # Video
-
+vs = cv2.VideoCapture(video_file)  # Video
 num_frames = int(vs.get(cv2.CAP_PROP_FRAME_COUNT))
-
 if start_frame is None:
     start_frame = 0
-
 if end_frame is None:
     end_frame = num_frames
 
-##read from specific frame
-vs.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-
+vs.set(cv2.CAP_PROP_POS_FRAMES, start_frame)  # Read from start frame
 total_frames = end_frame - start_frame
-
 current_frame = start_frame
 writer = None
 dict_predictions = {}
 progress_bar = tqdm(total=total_frames)
 frames_times = []
 
-
 while True:
     success, frame = vs.read()
+    all_boxes = []
+    all_confidences = []
+    all_times = []
 
     if not success:
         vs.release()
-        cv2.destroyAllWindows()  # Debug
+        cv2.destroyAllWindows()
         if output_video == 'y':
             writer.release()
         break
@@ -136,49 +130,71 @@ while True:
 
         tile_dim_x = tiles[0, 0].shape[0]
         tile_dim_y = tiles[0, 0].shape[1]
-        all_boxes = []
-        all_confidences = []
-        all_times = []
 
-        for row in range(0, tiles_x):
-            for column in range(0, tiles_y):
-                boxes, confidences, total_time, final_frame = detect_single_frame(mobile_ssd_net,
-                                                                                  tiles[row, column],
-                                                                                  confidence=confidence,
-                                                                                  tile_info={
-                                                                                      'row': row,
-                                                                                      'column': column},
-                                                                                  tiles_dict=tiles_dict)
-
-                all_boxes = all_boxes + boxes
-                all_confidences = all_confidences + confidences
-                all_times.append(total_time)
-
-        final_frame = frame.copy()
-        for box in all_boxes:
-            (startX, startY, endX, endY) = box
-
-            cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
-
-        for box in ground_truth_boxes['frame_' + str(current_frame)]:
-            (startX, startY, endX, endY) = box
-
-            cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
-        frames_times.append(np.sum(all_times))
-    else:
-        # Debug a specif tile
         if debug == 'y':
-            tiles_dict = tiles_info(frame, tiles_x, tiles_y, margin_percent)
-            tiles = tile_image(frame, tiles_x, tiles_y, tiles_dict)
+            # Debug a specific tile
+            row = 1
+            column = 1
             boxes, confidences, total_time, final_frame = detect_single_frame(mobile_ssd_net,
-                                                                              tiles[2, 1],
+                                                                              tiles[row, column],
                                                                               confidence=confidence
                                                                               )
-        else:  # See entire frame
+
+        else:
+            final_frame = frame.copy()
+
+            for row in range(0, tiles_x):
+                for column in range(0, tiles_y):
+                    boxes, confidences, total_time, _ = detect_single_frame(mobile_ssd_net,
+                                                                                      tiles[row, column],
+                                                                                      confidence=confidence,
+                                                                                      tile_info={
+                                                                                          'row': row,
+                                                                                          'column': column},
+                                                                                      tiles_dict=tiles_dict)
+
+                    all_boxes = all_boxes + boxes
+                    all_confidences = all_confidences + confidences
+                    all_times.append(total_time)
+
+            for box in all_boxes:
+                (startX, startY, endX, endY) = box
+
+                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
+
+            for box in ground_truth_boxes['frame_' + str(current_frame)]:
+                (startX, startY, endX, endY) = box
+
+                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
+
+            frames_times.append(np.sum(all_times))
+
+    else:  # See entire frame
+        if debug == 'y':
             boxes, confidences, total_time, final_frame = detect_single_frame(mobile_ssd_net,
                                                                               frame,
                                                                               confidence=confidence
                                                                               )
+        else:
+            boxes, confidences, total_time, _ = detect_single_frame(mobile_ssd_net,
+                                                                    frame,
+                                                                    confidence=confidence)
+
+            all_boxes = all_boxes + boxes
+            all_confidences = all_confidences + confidences
+            all_times.append(total_time)
+
+            final_frame = frame.copy()
+            for box in all_boxes:
+                (startX, startY, endX, endY) = box
+
+                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
+
+            for box in ground_truth_boxes['frame_' + str(current_frame)]:
+                (startX, startY, endX, endY) = box
+
+                cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
+            frames_times.append(np.sum(all_times))
 
     if output_video == 'y':
         # check if the video writer is None
@@ -207,10 +223,11 @@ while True:
             writer.release()
         break
 
-with open(main_dir + '/results/' + video_file_name + '_ssd_predicted_boxes.json', 'w') as fp:
-    json.dump(dict_predictions, fp)
+if debug != 'y':
+    with open(main_dir + '/results/' + video_file_name + '_ssd_predicted_boxes.json', 'w') as fp:
+        json.dump(dict_predictions, fp)
 
-print(np.round(1/np.mean(frames_times), 2), 'FPS')
+    print(np.round(1/np.mean(frames_times), 2), 'FPS')
 
 
 
