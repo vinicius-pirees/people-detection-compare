@@ -16,3 +16,7 @@ python display_result.py \
     --ground-truth-boxes ~/personal-git/people-detection-compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165_ground_truth_boxes.json \
     --predicted-boxes ~/personal-git/people-detection-compare/results/VIRAT_S_010000_00_000000_000165_mobile_ssd_predicted_boxes.json
 ```
+
+
+make -j5
+./fpdw ./inria_detector.xml ~/Downloads/proposal.jpeg

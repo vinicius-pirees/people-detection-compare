@@ -6,23 +6,24 @@ from matplotlib import pyplot as plt
 from utils import tile_image, append_tiles_image, tiles_info, box_new_coords, detect_over_frames
 from tqdm import tqdm
 import json
+import psutil
 
 main_dir = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 sys.path.append(os.path.join(main_dir, 'motion_detection'))
 
-detect_on_tiles = 'y'
+detect_on_tiles = 'n'
 debug = 'n'
-only_moving_frames = 'y'
+only_moving_frames = 'n'
 tiles_x = 3
 tiles_y = 4
-video_file = '/home/vgoncalves/personal-git/people_detection_compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
+video_file = '/home/vgoncalves/personal-git/people-detection-compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
 output_video = 'n'
 confidence = 0.2
 margin_percent = 0.25
-# start_frame = 550
-# end_frame = 570
-start_frame = None
-end_frame = None
+start_frame = 550
+end_frame = 800
+# start_frame = None
+# end_frame = None
 
 video_file_name = os.path.splitext(os.path.split(video_file)[1])[0]
 
@@ -120,6 +121,10 @@ dict_predictions = {}
 progress_bar = tqdm(total=total_frames)
 frames_times = []
 
+current_process = psutil.Process()
+print(current_process)
+
+
 detect_over_frames(vs,
                    'mobile_ssd',
                    detect_single_frame,
@@ -137,4 +142,4 @@ detect_over_frames(vs,
                    video_file_name=video_file_name,
                    confidence=confidence,
                    tiles_dict=tiles_dict,
-                   moving_frames=moving_frames)
+                   only_moving_frames=only_moving_frames)

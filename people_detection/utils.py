@@ -2,6 +2,11 @@ import numpy as np
 import cv2
 from tqdm import tqdm
 import json
+import psutil
+import time
+
+# current_process = psutil.Process()
+# print(current_process.cpu_percent())
 
 
 def non_max_suppression(boxes, probs=None, overlapThresh=0.3):
@@ -318,7 +323,39 @@ def detect_over_frames(video_stream, technique, detect_single_frame_function, **
         with open(prediction_file_name, 'w') as fp:
             json.dump(dict_predictions, fp)
 
-        print(np.round(1 / np.mean(frames_times), 2), 'FPS')
+        # Compute FPS
+        if detect_on_tiles == 'y':
+            tile_name = '_tiled_' + str(tiles_x) + 'X' + str(tiles_y)
+            fps_file = main_dir + '/results/' + video_file_name + '_' + technique + tile_name + '_FPS.txt'
+        else:
+            fps_file = main_dir + '/results/' + video_file_name + '_' + technique +  '_FPS.txt'
+        fps = np.round(1 / np.mean(frames_times), 2)
+        with open(fps_file, 'w') as fp:
+            fp.write(str(fps))
 
 
+def get_cpu_avg_usage(pid):
+    cpu_usage_percents = []
+    process = psutil.Process(pid=pid)
+    while True:
+        try:
+            percent = process.cpu_percent()
+            cpu_usage_percents.append(percent)
+        except Exception as e:
+            print(e)
+            break
+        time.sleep(1)
+    return float(np.mean(cpu_usage_percents))
 
+
+def get_avg_cpu_video(pid, main_dir, video_file_name, technique, tiles):
+    if tiles is not None:
+        tiles_x = tiles[0]
+        tiles_y = tiles[2]
+        tile_name = '_tiled_' + tiles_x + 'X' + tiles_y
+        cpu_file = main_dir + '/results/' + video_file_name + '_' + technique + tile_name + '_AVG_CPU.txt'
+    else:
+        cpu_file = main_dir + '/results/' + video_file_name + '_' + technique + '_AVG_CPU.txt'
+    cpu_avg_usage = get_cpu_avg_usage(pid)
+    with open(cpu_file, 'w') as fp:
+        fp.write(str(cpu_avg_usage))

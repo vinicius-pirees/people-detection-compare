@@ -8,13 +8,14 @@ from tqdm import tqdm
 import json
 
 
-detect_on_tiles = 'n'
+detect_on_tiles = 'y'
 debug = 'y'
-tiles_x = 2
-tiles_y = 3
+only_moving_frames = 'y'
+tiles_x = 4
+tiles_y = 5
 confidence = 0.5
 threshold = 0.3
-video_file = '/home/vgoncalves/personal-git/people_detection_compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
+video_file = '/home/vgoncalves/personal-git/people-detection-compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
 output_video = 'n'
 margin_percent = 0.25
 start_frame = 550
@@ -181,4 +182,5 @@ detect_over_frames(vs,
                    video_file_name=video_file_name,
                    confidence=confidence,
                    threshold=threshold,
-                   tiles_dict=tiles_dict)
+                   tiles_dict=tiles_dict,
+                   only_moving_frames=only_moving_frames)

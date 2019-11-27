@@ -13,7 +13,7 @@ start_frame = None
 end_frame = None
 weight = 0.6
 
-video_file = '/home/vgoncalves/personal-git/people_detection_compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
+video_file = '/home/vgoncalves/personal-git/people-detection-compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
 
 video_file_name = os.path.splitext(os.path.split(video_file)[1])[0]
 main_dir = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))

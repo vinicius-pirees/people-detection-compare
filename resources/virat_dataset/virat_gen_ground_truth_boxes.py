@@ -23,7 +23,7 @@ dict_gt_boxes = {}
 # for frame in range(0, num_frames):
 #     dict_gt_boxes['frame_' + str(frame)] = []
 
-# Each line captures informabiont about a bounding box of an object (person/car etc) at the corresponding frame.
+# Each line captures information about a bounding box of an object (person/car etc) at the corresponding frame.
 # Each object track is assigned a unique 'object id' identifier.
 # Note that:
 # - an object may be moving or static (e.g., parked car).
