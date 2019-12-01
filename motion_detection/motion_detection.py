@@ -6,30 +6,27 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 import json
 
-min_area = 500
+min_area = 40
 # start_frame = 550
 # end_frame = 600
 start_frame = None
 end_frame = None
 weight = 0.6
 
-video_file = '/home/vgoncalves/personal-git/people-detection-compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
+##video_file = '/home/vgoncalves/personal-git/people-detection-compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165.mp4'
 
-video_file_name = os.path.splitext(os.path.split(video_file)[1])[0]
+
+video_name_list = ['VIRAT_S_000201_02_000590_000623',
+                   'VIRAT_S_010000_00_000000_000165',
+                   'VIRAT_S_010003_01_000111_000137',
+                   'VIRAT_S_010106_01_000493_000526',
+                   'VIRAT_S_010200_03_000470_000567',
+                   'VIRAT_S_050000_12_001591_001619']
+
+#video_file_name = os.path.splitext(os.path.split(video_file)[1])[0]
 main_dir = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+videos_path = os.path.join(main_dir, 'resources/virat_dataset/')
 
-vs = cv2.VideoCapture(video_file)
-num_frames = int(vs.get(cv2.CAP_PROP_FRAME_COUNT))
-
-if start_frame is None:
-    start_frame = 0
-if end_frame is None:
-    end_frame = num_frames
-
-vs.set(cv2.CAP_PROP_POS_FRAMES, start_frame)  # Read from start frame
-
-total_frames = end_frame - start_frame
-current_frame = start_frame
 
 
 def detect_movement_frame(frame, avg, weight, min_area):
@@ -86,37 +83,57 @@ def is_current_frame_moving(frame, avg, weight, min_area):
 
 
 if __name__ == "__main__":
-    progress_bar = tqdm(total=total_frames)
-    avg = None
     moving_frames = {}
+    for video_name in video_name_list:
+        print(video_name)
+        vs = cv2.VideoCapture(os.path.join(videos_path, video_name + '.mp4'))
 
-    while True:
-        success, frame = vs.read()
+        num_frames = int(vs.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        if not success:
-            vs.release()
-            cv2.destroyAllWindows()
-            break
-        frame_copy = frame.copy()
+        # if start_frame is None:
+        #     start_frame = 0
+        # if end_frame is None:
+        #     end_frame = num_frames
 
-        is_moving, avg = is_current_frame_moving(frame, avg, weight, min_area)
-        moving_frames[current_frame] = is_moving
+        start_frame = 0
+        end_frame = num_frames
 
-        text = str(is_moving)
-        cv2.putText(frame_copy, text, (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-        cv2.imshow('Moving Status', frame_copy)
+        vs.set(cv2.CAP_PROP_POS_FRAMES, start_frame)  # Read from start frame
 
-        frame_with_boxes, _ = detect_movement_frame(frame, avg, weight, min_area)
-        cv2.imshow('Bounding Boxes', frame_with_boxes)
+        total_frames = end_frame - start_frame
+        current_frame = start_frame
 
-        # Press Q on keyboard to  exit
-        if (cv2.waitKey(25) & 0xFF == ord('q')) or current_frame == end_frame:
-            vs.release()
-            cv2.destroyAllWindows()
-            break
+        progress_bar = tqdm(total=total_frames)
+        avg = None
+        moving_frames[video_name] = {}
 
-        current_frame += 1
-        progress_bar.update(1)
+        while True:
+            success, frame = vs.read()
 
-    with open(main_dir + '/results/' + video_file_name + '_moving_frames.json', 'w') as fp:
-        json.dump(moving_frames, fp)
+            if not success:
+                vs.release()
+                cv2.destroyAllWindows()
+                break
+            frame_copy = frame.copy()
+
+            is_moving, avg = is_current_frame_moving(frame, avg, weight, min_area)
+            moving_frames[video_name][current_frame] = is_moving
+
+            text = str(is_moving)
+            cv2.putText(frame_copy, text, (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+            cv2.imshow('Moving Status', frame_copy)
+
+            frame_with_boxes, _ = detect_movement_frame(frame, avg, weight, min_area)
+            cv2.imshow('Bounding Boxes', frame_with_boxes)
+
+            # Press Q on keyboard to  exit
+            if (cv2.waitKey(25) & 0xFF == ord('q')) or current_frame == end_frame:
+                vs.release()
+                cv2.destroyAllWindows()
+                break
+
+            current_frame += 1
+            progress_bar.update(1)
+
+        with open(main_dir + '/results/VIRAT_videos_moving_frames.json', 'w') as fp:
+            json.dump(moving_frames, fp)

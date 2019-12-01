@@ -13,3 +13,4 @@ yolov3.weights
 MobileNetSSD_deploy.caffemodel
 __pycache__
 results/
+nohup.out
