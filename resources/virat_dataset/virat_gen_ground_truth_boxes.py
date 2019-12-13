@@ -5,7 +5,7 @@ import pandas as pd
 import json
 
 main_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(os.path.dirname(__file__)))))
-only_moving_frames = 'y'
+only_moving_frames = 'n'
 video_name_list = ['VIRAT_S_000201_02_000590_000623',
                    'VIRAT_S_010000_00_000000_000165',
                    'VIRAT_S_010003_01_000111_000137',

@@ -26,21 +26,7 @@ import pandas as pd
 # sns.set_context('poster')
 from pygments.lexer import default
 
-parser = argparse.ArgumentParser(description='Merge')
 
-parser.add_argument('-g', '--ground-truth-boxes',
-                    dest='ground_truth_boxes',
-                    type=str,
-                    default='ground_truth_boxes.json')
-parser.add_argument('-p', '--predicted-boxes',
-                    dest='predicted_boxes',
-                    type=str,
-                    default='predicted_boxes.json')
-
-
-args = parser.parse_args()
-ground_truth_boxes = args.ground_truth_boxes
-predicted_boxes = args.predicted_boxes
 
 COLORS = [
     '#1f77b4', '#aec7e8', '#ff7f0e', '#ffbb78', '#2ca02c',
@@ -201,7 +187,7 @@ def get_model_scores_map(pred_boxes):
                 model_scores_map[score].append(img_id)
     return model_scores_map
 
-def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5):
+def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=False):
     """Calculates average precision at given IoU threshold.
 
     Args:
@@ -239,8 +225,14 @@ def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5):
     recalls = []
     model_thrs = []
     img_results = {}
+
+    if not scores_all_same:
+        sorted_models_scores_list = sorted_model_scores[:-1]
+    else:
+        sorted_models_scores_list = sorted_model_scores
+
     # Loop over model score thresholds and calculate precision, recall
-    for ithr, model_score_thr in enumerate(sorted_model_scores[:-1]):
+    for ithr, model_score_thr in enumerate(sorted_models_scores_list):
         # On first iteration, define img_results for the first time:
         img_ids = gt_boxes.keys() if ithr == 0 else model_scores_map[model_score_thr]
         for img_id in img_ids:
@@ -254,9 +246,10 @@ def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5):
                 else:
                     break
 
-            # Remove boxes, scores of lower than threshold scores:
-            pred_boxes_pruned[img_id]['scores'] = pred_boxes_pruned[img_id]['scores'][start_idx:]
-            pred_boxes_pruned[img_id]['boxes'] = pred_boxes_pruned[img_id]['boxes'][start_idx:]
+            if not scores_all_same:
+                # Remove boxes, scores of lower than threshold scores:
+                pred_boxes_pruned[img_id]['scores'] = pred_boxes_pruned[img_id]['scores'][start_idx:]
+                pred_boxes_pruned[img_id]['boxes'] = pred_boxes_pruned[img_id]['boxes'][start_idx:]
 
             # Recalculate image results for this image
             img_results[img_id] = get_single_image_results(
@@ -286,8 +279,26 @@ def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5):
         'model_thrs': model_thrs}
 
 
+
+def simple_precision_recall(gt_boxes, pred_boxes, iou_thr=0.5):
+    img_results = {}
+    img_ids = gt_boxes.keys()
+
+    for img_id in img_ids:
+        gt_boxes_img = gt_boxes[img_id]
+        box_scores = pred_boxes[img_id]['scores']
+
+        # Recalculate image results for this image
+        img_results[img_id] = get_single_image_results(
+            gt_boxes_img, pred_boxes[img_id]['boxes'], iou_thr)
+
+    precision, recall = calc_precision_recall(img_results)
+    return precision, recall
+
+
+
 def plot_pr_curve(
-    precisions, recalls, category='Person', label=None, color=None, ax=None):
+    precisions, recalls, title='Precision-Recall curve for Person', label=None, color=None, ax=None):
     """Simple plotting helper function"""
 
     if ax is None:
@@ -296,22 +307,46 @@ def plot_pr_curve(
 
     if color is None:
         color = COLORS[0]
-    ax.scatter(recalls, precisions, label=label, s=20, color=color)
+    ax.scatter(recalls, precisions, label=label, s=10, color=color)
     ax.set_xlabel('recall')
     ax.set_ylabel('precision')
-    ax.set_title('Precision-Recall curve for {}'.format(category))
+    ax.set_title(title)
     ax.set_xlim([0.0,1.3])
     ax.set_ylim([0.0,1.2])
     return ax
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Merge')
+
+    parser.add_argument('-g', '--ground-truth-boxes',
+                        dest='ground_truth_boxes',
+                        type=str,
+                        default='ground_truth_boxes.json')
+    parser.add_argument('-p', '--predicted-boxes',
+                        dest='predicted_boxes',
+                        type=str,
+                        default='predicted_boxes.json')
+    parser.add_argument('-s', '--scores-all-same',
+                        dest='scores_all_same',
+                        type=str,
+                        default='n')
+
+    args = parser.parse_args()
+    ground_truth_boxes = args.ground_truth_boxes
+    predicted_boxes = args.predicted_boxes
+    scores_all_same = args.scores_all_same
 
     with open(ground_truth_boxes) as infile:
         gt_boxes = json.load(infile)
 
     with open(predicted_boxes) as infile:
         pred_boxes = json.load(infile)
+
+    if scores_all_same == 'y':
+        scores_all_same = True
+    else:
+        scores_all_same = False
 
     # Runs it for one IoU threshold
     iou_thr = 0.7
@@ -336,13 +371,13 @@ if __name__ == "__main__":
     #         precisions, recalls, label='{:.2f}'.format(iou_thr), color=COLORS[idx*2], ax=ax)
 
     iou_thr = 0.5
-    data = get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=iou_thr)
+    data = get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=iou_thr, scores_all_same=scores_all_same)
     avg_precs.append(data['avg_prec'])
     iou_thrs.append(iou_thr)
 
     precisions = data['precisions']
     recalls = data['recalls']
-    ax = plot_pr_curve( precisions, recalls, label='{:.2f}'.format(iou_thr), ax=ax)
+    ax = plot_pr_curve(precisions, recalls, label='{:.2f}'.format(iou_thr), ax=ax)
 
     # prettify for printing:
     avg_precs = [float('{:.4f}'.format(ap)) for ap in avg_precs]

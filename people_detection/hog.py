@@ -50,7 +50,7 @@ parser.add_argument('-w', '--win-stride',
                     dest='win_stride_dim',
                     type=int,
                     default=4)
-parser.add_argument('-d', '--padding',
+parser.add_argument('-n', '--padding',
                     dest='padding_dim',
                     type=int,
                     default=8)
