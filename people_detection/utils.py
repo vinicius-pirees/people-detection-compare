@@ -311,14 +311,14 @@ def detect_over_frames(video_dict, technique, detect_single_frame_function, **kw
             progress_bar.update(1)
 
             ##Debug
-            cv2.imshow('frame', final_frame)
-            # Press Q on keyboard to  exit
-            if (cv2.waitKey(25) & 0xFF == ord('q')) or current_frame == end_frame:
-                video_stream.release()
-                cv2.destroyAllWindows()  # Debug
-                if output_video == 'y':
-                    writer.release()
-                break
+            # cv2.imshow('frame', final_frame)
+            # # Press Q on keyboard to  exit
+            # if (cv2.waitKey(25) & 0xFF == ord('q')) or current_frame == end_frame:
+            #     video_stream.release()
+            #     cv2.destroyAllWindows()  # Debug
+            #     if output_video == 'y':
+            #         writer.release()
+            #     break
 
     if debug != 'y':
         if detect_on_tiles == 'y':
