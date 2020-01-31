@@ -76,7 +76,7 @@ sys.path.append(os.path.join(main_dir, 'motion_detection'))
 # start_frame = None
 # end_frame = None
 
-videos_path = '/home/vgoncalves/personal-git/people-detection-compare/resources/virat_dataset/'
+videos_path = os.path.join(main_dir,'resources/virat_dataset/')
 
 video_name_list = ['VIRAT_S_000201_02_000590_000623',
                    'VIRAT_S_010000_00_000000_000165',
