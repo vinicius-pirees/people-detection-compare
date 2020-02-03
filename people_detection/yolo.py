@@ -86,7 +86,7 @@ main_dir = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__fil
 videos_path = os.path.join(main_dir,'resources/virat_dataset/')
 
 with open(os.path.join(videos_path, 'videos_to_process.txt')) as f:
-    video_list = f.read().splitlines()
+    video_name_list = f.read().splitlines()
 
 
 yolo_dir = os.path.join(main_dir, 'models/yolo')

@@ -79,7 +79,7 @@ sys.path.append(os.path.join(main_dir, 'motion_detection'))
 videos_path = os.path.join(main_dir,'resources/virat_dataset/')
 
 with open(os.path.join(videos_path, 'videos_to_process.txt')) as f:
-    video_list = f.read().splitlines()
+    video_name_list = f.read().splitlines()
 
 
 mobile_ssd_dir = os.path.join(main_dir, 'models/mobile_ssd')
