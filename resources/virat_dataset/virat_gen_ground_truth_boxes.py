@@ -6,12 +6,13 @@ import json
 
 main_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(os.path.dirname(__file__)))))
 only_moving_frames = 'n'
-video_name_list = ['VIRAT_S_000201_02_000590_000623',
-                   'VIRAT_S_010000_00_000000_000165',
-                   'VIRAT_S_010003_01_000111_000137',
-                   'VIRAT_S_010106_01_000493_000526',
-                   'VIRAT_S_010200_03_000470_000567',
-                   'VIRAT_S_050000_12_001591_001619']
+resource_dir = os.path.join(main_dir, 'resources/virat_dataset/')
+
+
+with open(os.path.join(resource_dir, 'videos_to_process.txt')) as f:
+    video_list = f.read().splitlines()
+
+
 dict_gt_boxes = {}
 
 if only_moving_frames == 'y':
