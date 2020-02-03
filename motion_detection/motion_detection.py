@@ -116,16 +116,16 @@ if __name__ == "__main__":
 
             text = str(is_moving)
             cv2.putText(frame_copy, text, (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
-            cv2.imshow('Moving Status', frame_copy)
+            #cv2.imshow('Moving Status', frame_copy)
 
             frame_with_boxes, _ = detect_movement_frame(frame, avg, weight, min_area)
-            cv2.imshow('Bounding Boxes', frame_with_boxes)
+            #cv2.imshow('Bounding Boxes', frame_with_boxes)
 
-            # Press Q on keyboard to  exit
-            if (cv2.waitKey(25) & 0xFF == ord('q')) or current_frame == end_frame:
-                vs.release()
-                cv2.destroyAllWindows()
-                break
+            # # Press Q on keyboard to  exit
+            # if (cv2.waitKey(25) & 0xFF == ord('q')) or current_frame == end_frame:
+            #     vs.release()
+            #     cv2.destroyAllWindows()
+            #     break
 
             current_frame += 1
             progress_bar.update(1)
