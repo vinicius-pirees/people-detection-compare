@@ -14,3 +14,4 @@ MobileNetSSD_deploy.caffemodel
 __pycache__
 results/
 nohup.out
+.venvs/
