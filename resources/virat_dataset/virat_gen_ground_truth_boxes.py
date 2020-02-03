@@ -10,7 +10,9 @@ resource_dir = os.path.join(main_dir, 'resources/virat_dataset/')
 
 
 with open(os.path.join(resource_dir, 'videos_to_process.txt')) as f:
-    video_name_list = f.read().splitlines()
+    video_list = f.read().splitlines()
+
+video_name_list = [video.split('.')[0] for video  in video_list]
 
 
 dict_gt_boxes = {}
