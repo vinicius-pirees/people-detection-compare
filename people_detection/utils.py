@@ -256,10 +256,10 @@ def detect_over_frames(video_dict, technique, detect_single_frame_function, **kw
 
                         cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
 
-                    for box in ground_truth_boxes[video + '_frame_' + str(current_frame)]:
-                        (startX, startY, endX, endY) = box
-
-                        cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
+                    # for box in ground_truth_boxes[video + '_frame_' + str(current_frame)]:
+                    #     (startX, startY, endX, endY) = box
+                    #
+                    #     cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
 
                     frames_times.append(np.sum(all_times))
 
@@ -281,10 +281,10 @@ def detect_over_frames(video_dict, technique, detect_single_frame_function, **kw
 
                         cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
 
-                    for box in ground_truth_boxes[video + '_frame_' + str(current_frame)]:
-                        (startX, startY, endX, endY) = box
-
-                        cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
+                    # for box in ground_truth_boxes[video + '_frame_' + str(current_frame)]:
+                    #     (startX, startY, endX, endY) = box
+                    #
+                    #     cv2.rectangle(final_frame, (startX, startY), (endX, endY), (255, 0, 0), 2)
                     frames_times.append(np.sum(all_times))
 
             if output_video == 'y':
