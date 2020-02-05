@@ -16,3 +16,5 @@ results/
 nohup.out
 .venvs/
 *.zip
+tests/
+confidence_test.ipynb

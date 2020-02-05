@@ -16,7 +16,7 @@ def non_max_suppression(boxes, probs=None, overlapThresh=0.3):
     """
     # if there are no boxes, return an empty list
     if len(boxes) == 0:
-        return []
+        return [], []
 
     # if the bounding boxes are integers, convert them to floats -- this
     # is important since we'll be doing a bunch of divisions
@@ -73,8 +73,8 @@ def non_max_suppression(boxes, probs=None, overlapThresh=0.3):
         idxs = np.delete(idxs, np.concatenate(([last],
             np.where(overlap > overlapThresh)[0])))
 
-    # return only the bounding boxes that were picked
-    return boxes[pick].astype("int")
+    # return only the bounding boxes that were picked and its respectives probabilities
+    return boxes[pick].astype("int"), np.array(probs)[pick]
 
 
 def tiles_info(image, tiles_x, tiles_y, margin_percent):
@@ -176,7 +176,14 @@ def detect_over_frames(video_dict, technique, detect_single_frame_function, **kw
     if technique == 'haar':
         detection_args['scaleFactor'] = kwargs.get('scaleFactor')
         detection_args['minNeighbors'] = kwargs.get('minNeighbors')
+    if technique == 'haar_confidence':
+        detection_args['scaleFactor'] = kwargs.get('scaleFactor')
+        detection_args['minNeighbors'] = kwargs.get('minNeighbors')
     elif technique == 'hog':
+        detection_args['winStride'] = kwargs.get('winStride')
+        detection_args['padding'] = kwargs.get('padding')
+        detection_args['scale'] = kwargs.get('scale')
+    elif technique == 'hog_confidence':
         detection_args['winStride'] = kwargs.get('winStride')
         detection_args['padding'] = kwargs.get('padding')
         detection_args['scale'] = kwargs.get('scale')
