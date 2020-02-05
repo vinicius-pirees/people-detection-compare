@@ -180,6 +180,10 @@ def detect_over_frames(video_dict, technique, detect_single_frame_function, **kw
         detection_args['winStride'] = kwargs.get('winStride')
         detection_args['padding'] = kwargs.get('padding')
         detection_args['scale'] = kwargs.get('scale')
+    elif technique == 'hog_nms':
+        detection_args['winStride'] = kwargs.get('winStride')
+        detection_args['padding'] = kwargs.get('padding')
+        detection_args['scale'] = kwargs.get('scale')
     elif technique == 'yolo':
         detection_args['confidence'] = kwargs.get('confidence')
         detection_args['threshold'] = kwargs.get('threshold')
