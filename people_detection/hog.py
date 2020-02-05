@@ -132,7 +132,7 @@ def detect_single_frame(hog, frame, row, column, tiles_dict, **kwargs):
     frame_with_boxes = frame.copy()
 
     detections = np.array([[x, y, x + w, y + h] for (x, y, w, h) in detections])
-    detections = non_max_suppression(detections, probs=None, overlapThresh=0.65) #Non-Max Supression
+    #detections = non_max_suppression(detections, probs=None, overlapThresh=0.65) #Non-Max Supression
 
     for box in detections:
         if tiles_dict is not None:
