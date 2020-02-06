@@ -18,3 +18,4 @@ nohup.out
 *.zip
 tests/
 confidence_test.ipynb
+*.pickle

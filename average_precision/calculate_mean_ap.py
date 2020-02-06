@@ -19,6 +19,8 @@ import time
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
+import pickle
 
 #
 # sns.set_style('white')
@@ -136,7 +138,7 @@ def get_single_image_results(gt_boxes, pred_boxes, iou_thr, scale='all'):
     if len(all_gt_indices) == 0:
         tp = 0
         # Consider only unmatched detections inside of area range
-        #pred_boxes = filter_boxes(pred_boxes, scale='all')
+        pred_boxes = filter_boxes(pred_boxes, scale=scale)
         fp = len(pred_boxes)
         fn = 0
         return {'true_pos': tp, 'false_pos': fp, 'false_neg': fn}
@@ -156,6 +158,8 @@ def get_single_image_results(gt_boxes, pred_boxes, iou_thr, scale='all'):
     if len(args_desc) == 0:
         # No matches
         tp = 0
+        # Consider only unmatched detections inside of area range
+        pred_boxes = filter_boxes(pred_boxes, scale=scale)
         fp = len(pred_boxes)
         fn = len(gt_boxes)
     else:
@@ -168,8 +172,17 @@ def get_single_image_results(gt_boxes, pred_boxes, iou_thr, scale='all'):
             if (gt_idx not in gt_match_idx) and (pr_idx not in pred_match_idx):
                 gt_match_idx.append(gt_idx)
                 pred_match_idx.append(pr_idx)
+
+        # Consider only unmatched detections inside of area range
+        num_unmatched_pred_boxes_ignore = 0
+        idx_unmatched_pre_boxes = set(all_pred_indices) - set(pred_match_idx)
+        for idx_pred in idx_unmatched_pre_boxes:
+            if not box_in_scale(pred_boxes[idx_pred], scale=scale):
+                num_unmatched_pred_boxes_ignore += 1
+
         tp = len(gt_match_idx)
-        fp = len(pred_boxes) - len(pred_match_idx)
+        fp = (len(pred_boxes) - len(pred_match_idx)) - num_unmatched_pred_boxes_ignore
+        assert fp >= 0
         fn = len(gt_boxes) - len(gt_match_idx)
 
     return {'true_pos': tp, 'false_pos': fp, 'false_neg': fn}
@@ -225,7 +238,7 @@ def get_model_scores_map(pred_boxes):
                 model_scores_map[score].append(img_id)
     return model_scores_map
 
-def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=False, scale='all'):
+def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=False, scale='all', use_pickle=False, name=None):
     """Calculates average precision at given IoU threshold.
 
     Args:
@@ -252,80 +265,95 @@ def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=
     """
     assert scale in ['all', 'small', 'medium', 'large']
 
-    for img in pred_boxes.keys():
-        boxes = pred_boxes[img]['boxes']
-        scores = pred_boxes[img]['scores']
-        pred_boxes[img]['boxes'] = []
-        pred_boxes[img]['scores'] = []
+    # for img in pred_boxes.keys():
+    #     boxes = pred_boxes[img]['boxes']
+    #     scores = pred_boxes[img]['scores']
+    #     pred_boxes[img]['boxes'] = []
+    #     pred_boxes[img]['scores'] = []
+    #
+    #     for idx, box in enumerate(boxes):
+    #         if box_in_scale(box, scale=scale):
+    #             pred_boxes[img]['boxes'].append(box)
+    #             pred_boxes[img]['scores'].append(scores[idx])
 
-        for idx, box in enumerate(boxes):
-            if box_in_scale(box, scale=scale):
-                pred_boxes[img]['boxes'].append(box)
-                pred_boxes[img]['scores'].append(scores[idx])
-
+    num_gt_boxes = 0
     for img in gt_boxes.keys():
         boxes = gt_boxes[img]
         gt_boxes[img] = []
         for box in boxes:
             if box_in_scale(box, scale=scale):
                 gt_boxes[img].append(box)
+                num_gt_boxes += 1
 
-
-
+    print("Number of", scale, "ground truth boxes:", num_gt_boxes)
 
     model_scores_map = get_model_scores_map(pred_boxes)
     sorted_model_scores = sorted(model_scores_map.keys())
 
-    # Sort the predicted boxes in descending order (lowest scoring boxes first):
-    for img_id in pred_boxes.keys():
-        arg_sort = np.argsort(pred_boxes[img_id]['scores'])
-        pred_boxes[img_id]['scores'] = np.array(pred_boxes[img_id]['scores'])[arg_sort].tolist()
-        pred_boxes[img_id]['boxes'] = np.array(pred_boxes[img_id]['boxes'])[arg_sort].tolist()
-
-    pred_boxes_pruned = deepcopy(pred_boxes)
-
-    precisions = []
-    recalls = []
-    model_thrs = []
-    img_results = {}
-
-    if not scores_all_same:
-        sorted_models_scores_list = sorted_model_scores[:-1]
+    if use_pickle:
+        dict_pickle = pickle.load(open('recall_precision_' + name + '_' + scale + '.pickle', 'rb'))
+        precisions = np.array(dict_pickle['precision'])
+        recalls = np.array(dict_pickle['recall'])
+        prec_at_rec = []
     else:
-        sorted_models_scores_list = sorted_model_scores
 
-    # Loop over model score thresholds and calculate precision, recall
-    for ithr, model_score_thr in enumerate(sorted_models_scores_list):
-        # On first iteration, define img_results for the first time:
-        img_ids = gt_boxes.keys() if ithr == 0 else model_scores_map[model_score_thr]
-        for img_id in img_ids:
-            gt_boxes_img = gt_boxes[img_id]
-            box_scores = pred_boxes_pruned[img_id]['scores']
-            start_idx = 0
-            for score in box_scores:
-                if score <= model_score_thr:
-                    pred_boxes_pruned[img_id]
-                    start_idx += 1
-                else:
-                    break
+        # Sort the predicted boxes in descending order (lowest scoring boxes first):
+        for img_id in pred_boxes.keys():
+            arg_sort = np.argsort(pred_boxes[img_id]['scores'])
+            pred_boxes[img_id]['scores'] = np.array(pred_boxes[img_id]['scores'])[arg_sort].tolist()
+            pred_boxes[img_id]['boxes'] = np.array(pred_boxes[img_id]['boxes'])[arg_sort].tolist()
 
-            if not scores_all_same:
-                # Remove boxes, scores of lower than threshold scores:
-                pred_boxes_pruned[img_id]['scores'] = pred_boxes_pruned[img_id]['scores'][start_idx:]
-                pred_boxes_pruned[img_id]['boxes'] = pred_boxes_pruned[img_id]['boxes'][start_idx:]
+        pred_boxes_pruned = deepcopy(pred_boxes)
 
-            # Recalculate image results for this image
-            img_results[img_id] = get_single_image_results(
-                gt_boxes_img, pred_boxes_pruned[img_id]['boxes'], iou_thr)
+        precisions = []
+        recalls = []
+        model_thrs = []
+        img_results = {}
 
-        prec, rec = calc_precision_recall(img_results)
-        precisions.append(prec)
-        recalls.append(rec)
-        model_thrs.append(model_score_thr)
+        if not scores_all_same:
+            sorted_models_scores_list = sorted_model_scores[:-1]
+        else:
+            sorted_models_scores_list = sorted_model_scores
 
-    precisions = np.array(precisions)
-    recalls = np.array(recalls)
-    prec_at_rec = []
+        progress_bar = tqdm(total=len(sorted_models_scores_list))
+        # Loop over model score thresholds and calculate precision, recall
+        for ithr, model_score_thr in enumerate(sorted_models_scores_list):
+            # On first iteration, define img_results for the first time:
+            img_ids = gt_boxes.keys() if ithr == 0 else model_scores_map[model_score_thr]
+            for img_id in img_ids:
+                gt_boxes_img = gt_boxes[img_id]
+                box_scores = pred_boxes_pruned[img_id]['scores']
+                start_idx = 0
+                for score in box_scores:
+                    if score <= model_score_thr:
+                        pred_boxes_pruned[img_id]
+                        start_idx += 1
+                    else:
+                        break
+
+                if not scores_all_same:
+                    # Remove boxes, scores of lower than threshold scores:
+                    pred_boxes_pruned[img_id]['scores'] = pred_boxes_pruned[img_id]['scores'][start_idx:]
+                    pred_boxes_pruned[img_id]['boxes'] = pred_boxes_pruned[img_id]['boxes'][start_idx:]
+
+                # Recalculate image results for this image
+                img_results[img_id] = get_single_image_results(
+                    gt_boxes_img, pred_boxes_pruned[img_id]['boxes'], iou_thr, scale=scale)
+
+            prec, rec = calc_precision_recall(img_results)
+
+            precisions.append(prec)
+            recalls.append(rec)
+            #model_thrs.append(model_score_thr)
+            progress_bar.update(1)
+
+        dict_pickle = {'precision': precisions, 'recall': recalls}
+        pickle.dump(dict_pickle, open('recall_precision_' + name + '_' + scale + '.pickle', 'wb'))
+
+        precisions = np.array(precisions)
+        recalls = np.array(recalls)
+        prec_at_rec = []
+
     for recall_level in np.linspace(0.0, 1.0, 11):
         try:
             args = np.argwhere(recalls >= recall_level).flatten()
@@ -335,15 +363,21 @@ def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=
         prec_at_rec.append(prec)
     avg_prec = np.mean(prec_at_rec)
 
+    # return {
+    #     'avg_prec': avg_prec,
+    #     'precisions': precisions,
+    #     'recalls': recalls,
+    #     'model_thrs': model_thrs}
+
     return {
         'avg_prec': avg_prec,
         'precisions': precisions,
-        'recalls': recalls,
-        'model_thrs': model_thrs}
+        'recalls': recalls}
 
 
 
-def simple_precision_recall(gt_boxes, pred_boxes, iou_thr=0.5):
+
+def simple_precision_recall(gt_boxes, pred_boxes, iou_thr=0.5, scale='all'):
     img_results = {}
     img_ids = gt_boxes.keys()
 
@@ -353,11 +387,10 @@ def simple_precision_recall(gt_boxes, pred_boxes, iou_thr=0.5):
 
         # Recalculate image results for this image
         img_results[img_id] = get_single_image_results(
-            gt_boxes_img, pred_boxes[img_id]['boxes'], iou_thr)
+            gt_boxes_img, pred_boxes[img_id]['boxes'], iou_thr, scale=scale)
 
     precision, recall = calc_precision_recall(img_results)
     return precision, recall
-
 
 
 def plot_pr_curve(
@@ -394,11 +427,25 @@ if __name__ == "__main__":
                         dest='scores_all_same',
                         type=str,
                         default='n')
+    parser.add_argument('-r', '--scale',
+                        dest='scale',
+                        type=str,
+                        default='all')
+    parser.add_argument('-u', '--use-pickle',
+                        dest='use_pickle',
+                        type=str,
+                        default='n')
+    parser.add_argument('-n', '--name',
+                        dest='name',
+                        type=str)
 
     args = parser.parse_args()
     ground_truth_boxes = args.ground_truth_boxes
     predicted_boxes = args.predicted_boxes
     scores_all_same = args.scores_all_same
+    scale = args.scale
+    use_pickle = args.use_pickle
+    name = args.name
 
     with open(ground_truth_boxes) as infile:
         gt_boxes = json.load(infile)
@@ -410,6 +457,11 @@ if __name__ == "__main__":
         scores_all_same = True
     else:
         scores_all_same = False
+
+    if use_pickle == 'y':
+        use_pickle = True
+    else:
+        use_pickle = False
 
     start_time = time.time()
     ax = None
@@ -426,8 +478,8 @@ if __name__ == "__main__":
     #         precisions, recalls, label='{:.2f}'.format(iou_thr), color=COLORS[idx*2], ax=ax)
 
     iou_thr = 0.5
-    scale='large'
-    data = get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=iou_thr, scores_all_same=scores_all_same, scale=scale)
+    data = get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=iou_thr, scores_all_same=scores_all_same,
+                                    scale=scale, name=name, use_pickle=use_pickle)
     avg_precs.append(data['avg_prec'])
     iou_thrs.append(iou_thr)
 

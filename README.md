@@ -24,7 +24,9 @@ python mobile_ssd.py \
 ```bash
 python calculate_mean_ap.py \
     --ground-truth-boxes ../resources/virat_dataset/VIRAT_videos_moving_ground_truth_boxes.json \
-    --predicted-boxes ../results/VIRAT_videos_yolo_moving_predicted_boxes.json
+    --predicted-boxes ../results/VIRAT_videos_yolo_moving_predicted_boxes.json \
+    --scale all \
+    --name yolo
 ```
 
 #### Display Resulting Bounding Boxes
