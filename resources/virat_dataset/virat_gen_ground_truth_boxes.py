@@ -5,7 +5,7 @@ import pandas as pd
 import json
 
 main_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(os.path.dirname(__file__)))))
-only_moving_frames = 'n'
+only_moving_frames = 'y'
 resource_dir = os.path.join(main_dir, 'resources/virat_dataset/')
 
 
