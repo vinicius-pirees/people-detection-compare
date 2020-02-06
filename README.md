@@ -23,8 +23,8 @@ python mobile_ssd.py \
 #### Calculating mAP
 ```bash
 python calculate_mean_ap.py \
-    --ground-truth-boxes ~/personal-git/people-detection-compare/resources/virat_dataset/VIRAT_S_010000_00_000000_000165_ground_truth_boxes.json \
-    --predicted-boxes ~/personal-git/people-detection-compare/results/VIRAT_S_010000_00_000000_000165_mobile_ssd_predicted_boxes.json
+    --ground-truth-boxes ../resources/virat_dataset/VIRAT_videos_moving_ground_truth_boxes.json \
+    --predicted-boxes ../results/VIRAT_videos_yolo_moving_predicted_boxes.json
 ```
 
 #### Display Resulting Bounding Boxes

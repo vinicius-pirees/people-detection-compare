@@ -19,8 +19,7 @@ import time
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-# import seaborn as sns
+
 #
 # sns.set_style('white')
 # sns.set_context('poster')
@@ -34,6 +33,44 @@ COLORS = [
     '#8c564b', '#c49c94', '#e377c2', '#f7b6d2', '#7f7f7f',
     '#c7c7c7', '#bcbd22', '#dbdb8d', '#17becf', '#9edae5']
 
+scales = {'small': [0, np.power(32, 2)],
+         'medium': [np.power(32, 2), np.power(96, 2)],
+         'large': [np.power(96, 2), np.infty]}
+
+
+def box_area(box):
+    x1, y1, x2, y2 = box
+    
+    if (x1 > x2) or (y1 > y2):
+        raise AssertionError(
+            "Prediction box is malformed? pred box: {}".format(pred_box))
+        
+    box_area = (x2 - x1 + 1) * (y2 - y1 + 1)
+    
+    return box_area
+
+def filter_boxes(boxes, scale='all'):
+    if scale != 'all':
+        filtered_boxes = []
+        for box in boxes:
+            area = box_area(box)
+            if area >= scales[scale][0] and area < scales[scale][1]:
+                filtered_boxes.append(box)
+            
+        return filtered_boxes
+    else:
+        return boxes
+
+
+def box_in_scale(box, scale='all'):
+    if scale != 'all':
+        area = box_area(box)
+        if scales[scale][0] <= area < scales[scale][1]:
+            return True
+        else:
+            return False
+    else:
+        return True
 
 def calc_iou_individual(pred_box, gt_box):
     """Calculate IoU of single predicted and ground truth box
@@ -75,7 +112,7 @@ def calc_iou_individual(pred_box, gt_box):
     return iou
 
 
-def get_single_image_results(gt_boxes, pred_boxes, iou_thr):
+def get_single_image_results(gt_boxes, pred_boxes, iou_thr, scale='all'):
     """Calculates number of true_pos, false_pos, false_neg from single batch of boxes.
 
     Args:
@@ -85,7 +122,6 @@ def get_single_image_results(gt_boxes, pred_boxes, iou_thr):
             and 'scores'
         iou_thr (float): value of IoU to consider as threshold for a
             true prediction.
-
     Returns:
         dict: true positives (int), false positives (int), false negatives (int)
     """
@@ -99,6 +135,8 @@ def get_single_image_results(gt_boxes, pred_boxes, iou_thr):
         return {'true_pos': tp, 'false_pos': fp, 'false_neg': fn}
     if len(all_gt_indices) == 0:
         tp = 0
+        # Consider only unmatched detections inside of area range
+        #pred_boxes = filter_boxes(pred_boxes, scale='all')
         fp = len(pred_boxes)
         fn = 0
         return {'true_pos': tp, 'false_pos': fp, 'false_neg': fn}
@@ -187,7 +225,7 @@ def get_model_scores_map(pred_boxes):
                 model_scores_map[score].append(img_id)
     return model_scores_map
 
-def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=False):
+def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=False, scale='all'):
     """Calculates average precision at given IoU threshold.
 
     Args:
@@ -197,6 +235,8 @@ def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=
             objects as [xmin, ymin, xmax, ymax]
         iou_thr (float): value of IoU to consider as threshold for a
             true prediction.
+        scale (string) one of 'all','small','medium','large'. The scale of interest 
+            for calculating precision and recall
 
     Returns:
         dict: avg precision as well as summary info about the PR curve
@@ -210,6 +250,29 @@ def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=
             'models_thrs' (list of floats): model threshold value that
                 precision and recall were computed for.
     """
+    assert scale in ['all', 'small', 'medium', 'large']
+
+    for img in pred_boxes.keys():
+        boxes = pred_boxes[img]['boxes']
+        scores = pred_boxes[img]['scores']
+        pred_boxes[img]['boxes'] = []
+        pred_boxes[img]['scores'] = []
+
+        for idx, box in enumerate(boxes):
+            if box_in_scale(box, scale=scale):
+                pred_boxes[img]['boxes'].append(box)
+                pred_boxes[img]['scores'].append(scores[idx])
+
+    for img in gt_boxes.keys():
+        boxes = gt_boxes[img]
+        gt_boxes[img] = []
+        for box in boxes:
+            if box_in_scale(box, scale=scale):
+                gt_boxes[img].append(box)
+
+
+
+
     model_scores_map = get_model_scores_map(pred_boxes)
     sorted_model_scores = sorted(model_scores_map.keys())
 
@@ -348,14 +411,6 @@ if __name__ == "__main__":
     else:
         scores_all_same = False
 
-    # Runs it for one IoU threshold
-    iou_thr = 0.7
-    start_time = time.time()
-    data = get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=iou_thr)
-    end_time = time.time()
-    print('Single IoU calculation took {:.4f} secs'.format(end_time - start_time))
-    print('avg precision: {:.4f}'.format(data['avg_prec']))
-
     start_time = time.time()
     ax = None
     avg_precs = []
@@ -371,7 +426,8 @@ if __name__ == "__main__":
     #         precisions, recalls, label='{:.2f}'.format(iou_thr), color=COLORS[idx*2], ax=ax)
 
     iou_thr = 0.5
-    data = get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=iou_thr, scores_all_same=scores_all_same)
+    scale='large'
+    data = get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=iou_thr, scores_all_same=scores_all_same, scale=scale)
     avg_precs.append(data['avg_prec'])
     iou_thrs.append(iou_thr)
 
