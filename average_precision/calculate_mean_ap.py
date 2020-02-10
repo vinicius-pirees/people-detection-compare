@@ -22,18 +22,23 @@ import numpy as np
 from tqdm import tqdm
 import pickle
 
+main_dir = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 #
 # sns.set_style('white')
 # sns.set_context('poster')
-from pygments.lexer import default
 
+
+
+
+# COLORS = [
+#     '#1f77b4', '#aec7e8', '#ff7f0e', '#ffbb78', '#2ca02c',
+#     '#98df8a', '#d62728', '#ff9896', '#9467bd', '#c5b0d5',
+#     '#8c564b', '#c49c94', '#e377c2', '#f7b6d2', '#7f7f7f',
+#     '#c7c7c7', '#bcbd22', '#dbdb8d', '#17becf', '#9edae5']
 
 
 COLORS = [
-    '#1f77b4', '#aec7e8', '#ff7f0e', '#ffbb78', '#2ca02c',
-    '#98df8a', '#d62728', '#ff9896', '#9467bd', '#c5b0d5',
-    '#8c564b', '#c49c94', '#e377c2', '#f7b6d2', '#7f7f7f',
-    '#c7c7c7', '#bcbd22', '#dbdb8d', '#17becf', '#9edae5']
+    '#bada55','#ff0000','#ff80ed','#5ac18e','#ffa500','#660066','#c7c7c7','#17becf']
 
 scales = {'small': [0, np.power(32, 2)],
          'medium': [np.power(32, 2), np.power(96, 2)],
@@ -265,17 +270,6 @@ def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=
     """
     assert scale in ['all', 'small', 'medium', 'large']
 
-    # for img in pred_boxes.keys():
-    #     boxes = pred_boxes[img]['boxes']
-    #     scores = pred_boxes[img]['scores']
-    #     pred_boxes[img]['boxes'] = []
-    #     pred_boxes[img]['scores'] = []
-    #
-    #     for idx, box in enumerate(boxes):
-    #         if box_in_scale(box, scale=scale):
-    #             pred_boxes[img]['boxes'].append(box)
-    #             pred_boxes[img]['scores'].append(scores[idx])
-
     num_gt_boxes = 0
     for img in gt_boxes.keys():
         boxes = gt_boxes[img]
@@ -287,13 +281,34 @@ def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=
 
     print("Number of", scale, "ground truth boxes:", num_gt_boxes)
 
+    # Normalization and rounding
+    all_scores = []
+    for img in pred_boxes.keys():
+        for score in pred_boxes[img]['scores']:
+            all_scores.append(score)
+
+    min_score = min(all_scores)
+    max_score = max(all_scores)
+
+    for img in pred_boxes.keys():
+        scores_temp = pred_boxes[img]['scores']
+        pred_boxes[img]['scores'] = []
+        for score in scores_temp:
+            pred_boxes[img]['scores'].append(np.round((score - min_score) / (max_score - min_score), 3))
+
+
+
     model_scores_map = get_model_scores_map(pred_boxes)
     sorted_model_scores = sorted(model_scores_map.keys())
 
     if use_pickle:
-        dict_pickle = pickle.load(open('recall_precision_' + name + '_' + scale + '.pickle', 'rb'))
+        dict_pickle = pickle.load(open(main_dir + '/average_precision/recall_precision_' + name + '_' + scale + '.pickle', 'rb'))
         precisions = np.array(dict_pickle['precision'])
+        # precisions_test = np.sort(precisions.copy())[::-1]
+        # print(precisions_test[0:100])
         recalls = np.array(dict_pickle['recall'])
+        # recalls_test = np.sort(recalls.copy())[::-1]
+        # print(recalls_test[0:100])
         prec_at_rec = []
     else:
 
@@ -404,11 +419,11 @@ def plot_pr_curve(
     if color is None:
         color = COLORS[0]
     ax.scatter(recalls, precisions, label=label, s=10, color=color)
-    ax.set_xlabel('recall')
-    ax.set_ylabel('precision')
-    ax.set_title(title)
-    ax.set_xlim([0.0,1.3])
-    ax.set_ylim([0.0,1.2])
+    ax.set_xlabel(r'$Recall$', fontsize=15)
+    ax.set_ylabel(r'$Precision$', fontsize=15)
+    #ax.set_title(title)
+    ax.set_xlim([0.0,0.8])
+    ax.set_ylim([0.0,1.1])
     return ax
 
 
@@ -446,6 +461,8 @@ if __name__ == "__main__":
     scale = args.scale
     use_pickle = args.use_pickle
     name = args.name
+
+
 
     with open(ground_truth_boxes) as infile:
         gt_boxes = json.load(infile)
