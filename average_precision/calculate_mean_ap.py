@@ -418,11 +418,12 @@ def plot_pr_curve(
 
     if color is None:
         color = COLORS[0]
-    ax.scatter(recalls, precisions, label=label, s=10, color=color)
+    #ax.scatter(recalls, precisions, label=label, s=10, color=color)
+    ax.plot(recalls, precisions,  label=label,  linewidth=3, markersize=1, color=color)
     ax.set_xlabel(r'$Recall$', fontsize=15)
     ax.set_ylabel(r'$Precision$', fontsize=15)
     #ax.set_title(title)
-    ax.set_xlim([0.0,0.8])
+    ax.set_xlim([0.0,0.72])
     ax.set_ylim([0.0,1.1])
     return ax
 
