@@ -19,3 +19,5 @@ nohup.out
 tests/
 confidence_test.ipynb
 *.pickle
+*.png
+caviar_dataset/
