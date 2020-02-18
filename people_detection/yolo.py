@@ -97,8 +97,8 @@ YOLO_LABELS = open(labelsPath).read().strip().split("\n")
 # # initialize a list of colors to represent each possible class label
 # np.random.seed(42)
 # YOLO_COLORS = np.random.randint(0, 255, size=(len(YOLO_LABELS), 3), dtype="uint8")
-weightsPath = os.path.sep.join([yolo_dir, "yolov3-tiny.weights"])
-configPath = os.path.sep.join([yolo_dir, "yolov3-tiny.cfg"])
+weightsPath = os.path.sep.join([yolo_dir, "yolov3.weights"])
+configPath = os.path.sep.join([yolo_dir, "yolov3.cfg"])
 
 # load our YOLO object detector trained on COCO dataset (80 classes)
 yolo_net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
