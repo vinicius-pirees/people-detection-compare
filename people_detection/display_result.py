@@ -9,18 +9,13 @@ import json
 import argparse
 
 
-# video_name = 'VIRAT_S_010000_00_000000_000165'
-main_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(os.path.dirname(__file__)))))
+main_dir = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+videos_path = os.path.join(main_dir, 'resources/virat_dataset/')
 
-videos_path = '/home/vgoncalves/personal-git/people-detection-compare/resources/virat_dataset/'
+with open(os.path.join(videos_path, 'videos_to_process.txt')) as f:
+    video_list = f.read().splitlines()
 
-video_name_list = ['VIRAT_S_000201_02_000590_000623',
-                   'VIRAT_S_010000_00_000000_000165',
-                   'VIRAT_S_010003_01_000111_000137',
-                   'VIRAT_S_010106_01_000493_000526',
-                   'VIRAT_S_010200_03_000470_000567',
-                   'VIRAT_S_050000_12_001591_001619']
-
+video_name_list = [video.split('.')[0] for video in video_list]
 
 # start_frame = 550
 # end_frame = 570
@@ -77,10 +72,13 @@ for video_name in video_name_list:
             break
 
         if pred_boxes.get(video_name + '_frame_' + str(current_frame)):
-            for box in pred_boxes[video_name + '_frame_' + str(current_frame)]['boxes']:
+            for index, box in enumerate(pred_boxes[video_name + '_frame_' + str(current_frame)]['boxes']):
                 (startX, startY, endX, endY) = box
 
                 cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
+                text = "{:.4f}".format(pred_boxes[video_name + '_frame_' + str(current_frame)]['scores'][index])
+                cv2.putText(frame, text, (startX, startY - 5), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5, (0, 255, 0), 2)
 
         if gt_boxes.get(video_name + '_frame_' + str(current_frame)):
             for box in gt_boxes[video_name + '_frame_' + str(current_frame)]:

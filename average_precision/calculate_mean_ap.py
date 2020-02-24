@@ -423,7 +423,7 @@ def plot_pr_curve(
     ax.set_xlabel(r'$Recall$', fontsize=15)
     ax.set_ylabel(r'$Precision$', fontsize=15)
     #ax.set_title(title)
-    ax.set_xlim([0.0,0.72])
+    ax.set_xlim([0.0,1.1])
     ax.set_ylim([0.0,1.1])
     return ax
 

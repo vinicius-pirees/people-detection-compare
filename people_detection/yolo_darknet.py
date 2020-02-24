@@ -1,5 +1,14 @@
 import cv2
 import os
+import sys
+
+main_dir = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+yolo_dir = os.path.join(main_dir, 'models/yolo')
+darknet_dir = os.path.join(main_dir, 'models/darknet')
+darknet_script_dir = os.path.join(main_dir, 'models/darknet_python')
+
+sys.path.append(darknet_script_dir)
+import darknet
 import numpy as np
 import time
 from matplotlib import pyplot as plt
@@ -49,7 +58,7 @@ parser.add_argument('-c', '--confidence',
 parser.add_argument('-t', '--threshold',
                     dest='threshold',
                     type=float,
-                    default=0.3)
+                    default=0.45)
 
 args = parser.parse_args()
 detect_on_tiles = args.detect_on_tiles
@@ -81,29 +90,28 @@ threshold = args.threshold
 # # end_frame = None
 
 
-main_dir = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
 
 videos_path = os.path.join(main_dir,'resources/virat_dataset/')
 
 with open(os.path.join(videos_path, 'videos_to_process.txt')) as f:
     video_list = f.read().splitlines()
 
+
+
 video_name_list = [video.split('.')[0] for video in video_list]
 
 
-yolo_dir = os.path.join(main_dir, 'models/yolo')
-labelsPath = os.path.sep.join([yolo_dir, "coco.names"])
-YOLO_LABELS = open(labelsPath).read().strip().split("\n")
-# # initialize a list of colors to represent each possible class label
-# np.random.seed(42)
-# YOLO_COLORS = np.random.randint(0, 255, size=(len(YOLO_LABELS), 3), dtype="uint8")
-weightsPath = os.path.sep.join([yolo_dir, "yolov3.weights"])
-configPath = os.path.sep.join([yolo_dir, "yolov3.cfg"])
 
-# load our YOLO object detector trained on COCO dataset (80 classes)
-yolo_net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
-ln = yolo_net.getLayerNames()
-ln = [ln[i[0] - 1] for i in yolo_net.getUnconnectedOutLayers()]  # determine only the *output* layer names that we need from YOLO
+cfg_path = os.path.join(yolo_dir, "yolov3.cfg")
+weights_path = os.path.join(yolo_dir, "yolov3.weights")
+meta_path = os.path.join(yolo_dir,"coco.data")
+
+print(cfg_path)
+print(weights_path)
+
+net = darknet.load_net(bytes(cfg_path, encoding='utf-8'), bytes(weights_path, encoding='utf-8'), 0)
+meta = darknet.load_meta(bytes(meta_path, encoding='utf-8'))
 
 
 
@@ -124,76 +132,35 @@ if only_moving_frames == 'y':
 
 
 def detect_single_frame(yolo_net, frame, row, column, tiles_dict, **kwargs):
-    (H, W) = frame.shape[:2]
-
     confidence = kwargs.get('confidence')
     threshold = kwargs.get('threshold')
 
-    # construct a blob from the input frame and then perform a forward
-    # pass of the YOLO object detector, giving us our bounding boxes
-    # and associated probabilities
-    blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416), swapRB=True, crop=False)
-    yolo_net.setInput(blob)
     start_time = time.time()
-    layerOutputs = yolo_net.forward(ln)
+    detections = darknet.detect(yolo_net, meta, frame, nms=threshold)
     total_time = time.time() - start_time
 
-    # initialize our lists of detected bounding boxes, confidences,
-    # and class IDs, respectively
     boxes = []
     confidences = []
-    classIDs = []
-
-    final_boxes = []
-    final_confidences = []
     frame_with_boxes = frame.copy()
 
-    # loop over each of the layer outputs
-    for output in layerOutputs:
-        # loop over each of the detections
-        for detection in output:
-            # extract the class ID and confidence (i.e., probability)
-            # of the current object detection
-            scores = detection[5:]
-            classID = np.argmax(scores)
-            _confidence = scores[classID]
-
-            # filter out weak predictions by ensuring the detected
-            # probability is greater than the minimum probability
+    for detection in detections:
+        _class = detection[0].decode("utf-8")
+        if _class == 'person':
+            _confidence = detection[1]
             if _confidence > confidence:
-                if YOLO_LABELS[int(classID)] == 'person':
-                    # scale the bounding box coordinates back relative to
-                    # the size of the image, keeping in mind that YOLO
-                    # actually returns the center (x, y)-coordinates of
-                    # the bounding box followed by the boxes' width and
-                    # height
-                    box = detection[0:4] * np.array([W, H, W, H])
-                    (centerX, centerY, width, height) = box.astype("int")
+                confidences.append(_confidence)
 
-                    # use the center (x, y)-coordinates to derive the top
-                    # and and left corner of the bounding box
-                    x = int(centerX - (width / 2))
-                    y = int(centerY - (height / 2))
+                (centerX, centerY, width, height) = detection[2]
+                # (startX, startY, endX, endY) = detection[2]
 
-                    # update our list of bounding box coordinates,
-                    # confidences, and class IDs
-                    boxes.append([x, y, int(width), int(height)])
-                    confidences.append(float(_confidence))
-                    classIDs.append(classID)
+                # use the center (x, y)-coordinates to derive the top
+                # and and left corner of the bounding box
+                x = int(centerX - (width / 2))
+                y = int(centerY - (height / 2))
 
-        # apply non-maxima suppression to suppress weak, overlapping bounding boxes
-        idxs = cv2.dnn.NMSBoxes(boxes, confidences, confidence, threshold)
+                box = [int(x), int(y), int(width), int(height)]
 
-        # ensure at least one detection exists
-        if len(idxs) > 0:
-            # loop over the indexes we are keeping
-            for i in idxs.flatten():
-                # extract the bounding box coordinates
-                (x, y) = (boxes[i][0], boxes[i][1])
-                (w, h) = (boxes[i][2], boxes[i][3])
-
-                box = [x, y, (x + w), (y + h)]
-                confidence_c = confidences[i]
+                boxes.append(box)
 
                 if tiles_dict is not None:
                     startX, startY, endX, endY = box_new_coords(box,
@@ -203,18 +170,11 @@ def detect_single_frame(yolo_net, frame, row, column, tiles_dict, **kwargs):
                 else:
                     (startX, startY, endX, endY) = box
 
-                final_boxes.append([int(startX), int(startY), int(endX), int(endY)])
-                final_confidences.append(float(confidence_c))
+                cv2.rectangle(frame_with_boxes, (startX, startY), (endX, endY), (0, 255, 0), 2)
+
+    return boxes, confidences, total_time, frame_with_boxes
 
 
-                # draw a bounding box rectangle and label on the frame
-                cv2.rectangle(frame_with_boxes, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                text = "{}: {:.4f}".format(YOLO_LABELS[classIDs[i]],
-                                           confidences[i])
-                cv2.putText(frame_with_boxes, text, (x, y - 5),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-    return final_boxes, final_confidences, total_time, frame_with_boxes
 
 
 video_dict = {}
@@ -234,7 +194,7 @@ for video_name in video_name_list:
     # if start_frame is None:
     #     start_frame = 0
     # if end_frame is None:
-    #     end_frame = num_frames
+    #     end_frame = num_framescl
     start_frame = 0
     end_frame = num_frames
 
@@ -257,16 +217,15 @@ command = 'python ' + main_dir + '/people_detection/get_cpu_usage.py --pid ' + s
 print(command)
 os.system('nohup ' + command + ' &')
 
-
 detect_over_frames(video_dict,
-                   'yolo',
+                   'yolo_darknet',
                    detect_single_frame,
                    output_video=output_video,
                    detect_on_tiles=detect_on_tiles,
                    debug=debug,
                    tiles_x=tiles_x,
                    tiles_y=tiles_y,
-                   model=yolo_net,
+                   model=net,
                    ground_truth_boxes=ground_truth_boxes,
                    main_dir=main_dir,
                    only_moving_frames=only_moving_frames,
@@ -276,6 +235,6 @@ detect_over_frames(video_dict,
                    threshold=threshold)
 
 if detect_on_tiles == 'y':
-    write_cpu_usage_file(main_dir, 'VIRAT_videos', 'yolo', str(tiles_x) + ',' + str(tiles_y))
+    write_cpu_usage_file(main_dir, 'VIRAT_videos', 'yolo_darknet', str(tiles_x) + ',' + str(tiles_y))
 else:
-    write_cpu_usage_file(main_dir, 'VIRAT_videos', 'yolo', None)
+    write_cpu_usage_file(main_dir, 'VIRAT_videos', 'yolo_darknet', None)
