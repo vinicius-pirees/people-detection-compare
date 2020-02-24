@@ -16,6 +16,7 @@ results/
 nohup.out
 .venvs/
 *.zip
+*.pyc
 tests/
 confidence_test.ipynb
 *.pickle

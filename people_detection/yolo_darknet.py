@@ -18,6 +18,7 @@ import json
 import psutil
 import argparse
 
+darknet.set_gpu(3)
 parser = argparse.ArgumentParser(description='Detection - YOLO')
 
 parser.add_argument('-d', '--detect-on-tiles',
