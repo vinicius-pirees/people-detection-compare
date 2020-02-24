@@ -18,7 +18,7 @@ import json
 import psutil
 import argparse
 
-darknet.set_gpu(3)
+
 parser = argparse.ArgumentParser(description='Detection - YOLO')
 
 parser.add_argument('-d', '--detect-on-tiles',
@@ -60,6 +60,10 @@ parser.add_argument('-t', '--threshold',
                     dest='threshold',
                     type=float,
                     default=0.45)
+parser.add_argument('-g', '--gpu',
+                    dest='gpu',
+                    type=int,
+                    default=0)
 
 args = parser.parse_args()
 detect_on_tiles = args.detect_on_tiles
@@ -73,8 +77,10 @@ end_frame = args.end_frame
 only_moving_frames = args.only_moving_frames
 confidence = args.confidence
 threshold = args.threshold
+gpu = args.gpu
 
 
+darknet.set_gpu(gpu)
 
 # detect_on_tiles = 'y'
 # debug = 'y'
