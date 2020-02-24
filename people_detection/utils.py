@@ -197,6 +197,9 @@ def detect_over_frames(video_dict, technique, detect_single_frame_function, **kw
     elif technique == 'yolo_darknet':
         detection_args['confidence'] = kwargs.get('confidence')
         detection_args['threshold'] = kwargs.get('threshold')
+    elif technique == 'faster_rcnn':
+        detection_args['confidence'] = kwargs.get('confidence')
+        detection_args['threshold'] = kwargs.get('threshold')
     elif technique == 'mobile_ssd':
         detection_args['confidence'] = kwargs.get('confidence')
 
@@ -295,6 +298,7 @@ def detect_over_frames(video_dict, technique, detect_single_frame_function, **kw
 
                         cv2.rectangle(final_frame, (startX, startY), (endX, endY), (0, 255, 0), 2)
 
+
                     # for box in ground_truth_boxes[video + '_frame_' + str(current_frame)]:
                     #     (startX, startY, endX, endY) = box
                     #
@@ -325,14 +329,15 @@ def detect_over_frames(video_dict, technique, detect_single_frame_function, **kw
             progress_bar.update(1)
 
             ##Debug
-            # cv2.imshow('frame', final_frame)
-            # # Press Q on keyboard to  exit
-            # if (cv2.waitKey(25) & 0xFF == ord('q')) or current_frame == end_frame:
-            #     video_stream.release()
-            #     cv2.destroyAllWindows()  # Debug
-            #     if output_video == 'y':
-            #         writer.release()
-            #     break
+            if debug == 'y':
+                cv2.imshow('frame', final_frame)
+                # Press Q on keyboard to  exit
+                if (cv2.waitKey(25) & 0xFF == ord('q')) or current_frame == end_frame:
+                    video_stream.release()
+                    cv2.destroyAllWindows()  # Debug
+                    if output_video == 'y':
+                        writer.release()
+                    break
 
     if debug != 'y':
         if detect_on_tiles == 'y':
