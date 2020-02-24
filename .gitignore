@@ -24,3 +24,4 @@ confidence_test.ipynb
 *.png
 caviar_dataset/
 darknet/
+saved_model/
