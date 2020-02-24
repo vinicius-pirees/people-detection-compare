@@ -10,6 +10,7 @@ venv.bak/
 *.mp4
 .ipynb_checkpoints/
 yolov3.weights
+frozen_inference_graph.pb
 MobileNetSSD_deploy.caffemodel
 __pycache__
 results/
