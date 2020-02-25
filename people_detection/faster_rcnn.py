@@ -98,8 +98,6 @@ with open(os.path.join(videos_path, 'videos_to_process.txt')) as f:
 
 video_name_list = [video.split('.')[0] for video in video_list]
 
-video_name_list = video_name_list[1:2]
-
 net = cv2.dnn.readNetFromTensorflow(os.path.join(faster_rcnn_dir,'frozen_inference_graph.pb'),
                                     os.path.join(faster_rcnn_dir,'graph.pbtxt'))
 
