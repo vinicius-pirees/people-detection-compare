@@ -110,7 +110,7 @@ video_name_list = [video.split('.')[0] for video in video_list]
 
 
 
-cfg_path = os.path.join(yolo_dir, "yolov3.cfg")
+cfg_path = os.path.join(yolo_dir, "yolov3_608.cfg")
 weights_path = os.path.join(yolo_dir, "yolov3.weights")
 meta_path = os.path.join(yolo_dir,"coco.data")
 
@@ -225,7 +225,7 @@ print(command)
 os.system('nohup ' + command + ' &')
 
 detect_over_frames(video_dict,
-                   'yolo_darknet',
+                   'yolo_darknet_608',
                    detect_single_frame,
                    output_video=output_video,
                    detect_on_tiles=detect_on_tiles,
@@ -242,6 +242,6 @@ detect_over_frames(video_dict,
                    threshold=threshold)
 
 if detect_on_tiles == 'y':
-    write_cpu_usage_file(main_dir, 'VIRAT_videos', 'yolo_darknet', str(tiles_x) + ',' + str(tiles_y))
+    write_cpu_usage_file(main_dir, 'VIRAT_videos', 'yolo_darknet_608', str(tiles_x) + ',' + str(tiles_y))
 else:
-    write_cpu_usage_file(main_dir, 'VIRAT_videos', 'yolo_darknet', None)
+    write_cpu_usage_file(main_dir, 'VIRAT_videos', 'yolo_darknet_608', None)

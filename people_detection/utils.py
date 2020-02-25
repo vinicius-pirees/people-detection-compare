@@ -5,6 +5,7 @@ import json
 import psutil
 import time
 import os
+import pickle
 
 # current_process = psutil.Process()
 # print(current_process.cpu_percent())
@@ -352,6 +353,7 @@ def detect_over_frames(video_dict, technique, detect_single_frame_function, **kw
             else:
                 prediction_file_name = main_dir + '/results/VIRAT_videos_' + technique + '_predicted_boxes.json'
 
+        pickle.dump(dict_predictions, open('/tmp/' + technique + '.pkl', "wb"))
         with open(prediction_file_name, 'w') as fp:
             json.dump(dict_predictions, fp)
 
