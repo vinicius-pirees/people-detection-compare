@@ -198,6 +198,9 @@ def detect_over_frames(video_dict, technique, detect_single_frame_function, **kw
     elif technique == 'yolo_darknet':
         detection_args['confidence'] = kwargs.get('confidence')
         detection_args['threshold'] = kwargs.get('threshold')
+    elif technique == 'yolo_darknet_608':
+        detection_args['confidence'] = kwargs.get('confidence')
+        detection_args['threshold'] = kwargs.get('threshold')
     elif technique == 'faster_rcnn':
         detection_args['confidence'] = kwargs.get('confidence')
         detection_args['threshold'] = kwargs.get('threshold')
