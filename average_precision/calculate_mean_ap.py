@@ -304,11 +304,11 @@ def get_avg_precision_at_iou(gt_boxes, pred_boxes, iou_thr=0.5, scores_all_same=
     if use_pickle:
         dict_pickle = pickle.load(open(main_dir + '/average_precision/recall_precision_' + name + '_' + scale + '.pickle', 'rb'))
         precisions = np.array(dict_pickle['precision'])
-        # precisions_test = np.sort(precisions.copy())[::-1]
-        # print(precisions_test[0:100])
+        #precisions_test = np.sort(precisions.copy())[::-1]
+        #print(precisions_test[0:100])
         recalls = np.array(dict_pickle['recall'])
-        # recalls_test = np.sort(recalls.copy())[::-1]
-        # print(recalls_test[0:100])
+        #recalls_test = np.sort(recalls.copy())[::-1]
+        #print(recalls_test[0:100])
         prec_at_rec = []
     else:
 
